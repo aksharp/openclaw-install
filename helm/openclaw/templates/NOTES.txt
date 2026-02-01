@@ -1,0 +1,53 @@
+OpenClaw (V10) has been installed.
+
+All manual steps (secrets, Vault, Tailscale, Signal, audit, TLS, DNS) are in: docs/PREREQUISITES.md (Section 5).
+
+Next steps (summary):
+
+1. Create Kubernetes secrets (if not using Vault for all):
+   - Gateway token:  kubectl create secret generic openclaw-gateway-token --from-literal=token=<GATEWAY_TOKEN> -n {{ include "openclaw.namespace" . }}
+   - Vault token:    kubectl create secret generic openclaw-vault-gateway-token --from-literal=token=<VAULT_TOKEN> -n {{ include "openclaw.namespace" . }}
+
+2. Populate Vault (if internal Vault is enabled):
+   - Port-forward:  kubectl port-forward svc/{{ include "openclaw.vault.fullname" . }} 8200:8200 -n {{ include "openclaw.namespace" . }}
+   - Enable KV:      vault secrets enable -path=openclaw kv-v2
+   - Put secrets:    vault kv put openclaw/gateway gateway_token=... openai_api_key=... anthropic_api_key=...
+   - Put signal:     vault kv put openclaw/signal account=+1...
+   - Create policy and token for gateway; store token in secret openclaw-vault-gateway-token
+
+3. Configure Tailscale Serve (V10):
+   - Join this cluster/node to Tailscale; do NOT use Funnel for the gateway.
+   - Expose gateway port (e.g. {{ .Values.gateway.port }}) via Tailscale Serve to your tailnet only.
+
+4. Access Control UI:
+   - Via Tailscale:  https://{{ .Values.tailscale.hostname }} (after Serve is configured)
+   - Or port-forward: kubectl port-forward svc/{{ include "openclaw.gateway.fullname" . }} {{ .Values.gateway.port }}:{{ .Values.gateway.port }} -n {{ include "openclaw.namespace" . }}
+   - Paste gateway token in Control UI (Settings → token).
+
+5. Link Signal and approve pairings:
+   - Run openclaw pairing list signal and openclaw pairing approve signal <CODE> (via CLI pod or Control UI).
+
+6. Run security audit:
+   - kubectl exec -it deployment/{{ include "openclaw.gateway.fullname" . }} -n {{ include "openclaw.namespace" . }} -- openclaw security audit --fix
+   - Or run from a CLI pod if your image supports it.
+
+{{- if .Values.observability.enabled }}
+7. Observability (V10):
+   {{- if .Values.observability.grafana.enabled }}
+   - Grafana:    kubectl port-forward svc/{{ include "openclaw.grafana.fullname" . }} 3000:3000 -n {{ include "openclaw.namespace" . }}
+   {{- end }}
+   {{- if .Values.observability.prometheus.enabled }}
+   - Prometheus: kubectl port-forward svc/{{ include "openclaw.prometheus.fullname" . }} 9090:9090 -n {{ include "openclaw.namespace" . }}
+   {{- end }}
+   {{- if .Values.observability.loki.enabled }}
+   - Loki:       kubectl port-forward svc/{{ include "openclaw.loki.fullname" . }} 3100:3100 -n {{ include "openclaw.namespace" . }}
+   {{- end }}
+   - Access dashboards via Tailscale (production) or port-forward (local). Configure Alertmanager (Slack/PagerDuty) in values.
+{{- end }}
+
+{{- if and .Values.ingress.enabled .Values.ingress.domain }}
+8. Ingress (DNS names): If your Ingress controller (e.g. openclaw-ingress chart) is installed and DNS points at it, use your configurable hosts (e.g. https://openclaw.{{ .Values.ingress.domain }}, https://vault.{{ .Values.ingress.domain }}, or overrides in ingress.hosts.*Host). Per V10: restrict access (Tailscale/private). See docs/INGRESS-DNS-AND-LENS.md.
+{{- end }}
+
+For full checklist see: OPENCLAW-DOCKER-SECURE-INSTALL-V10.md
+For local Kubernetes on Mac: helm/openclaw/docs/LOCAL-KUBERNETES-MAC.md

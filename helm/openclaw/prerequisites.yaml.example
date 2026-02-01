@@ -1,0 +1,120 @@
+# ---------------------------------------------------------------------------
+# OpenClaw Helm chart — prerequisites / values override
+# Copy to prerequisites.yaml, fill in your values, then run:
+#   helm upgrade --install openclaw ./openclaw -f prerequisites.yaml -n openclaw --create-namespace
+# Do NOT put secrets in this file; use Kubernetes Secrets or Vault.
+# ---------------------------------------------------------------------------
+
+# ---- OpenClaw version (upgradeable: set to desired stable release) ----
+openclaw:
+  image:
+    repository: ghcr.io/openclaw/openclaw
+    tag: "v1.0.0"   # e.g. v1.2.3 — see https://github.com/openclaw/openclaw/releases
+    pullPolicy: IfNotPresent
+
+# ---- Identity (optional overrides) ----
+nameOverride: ""
+fullnameOverride: ""
+namespaceOverride: ""
+
+# ---- Tailscale (V10): hostname of this node in your tailnet ----
+tailscale:
+  enabled: true
+  hostname: "openclaw"   # From tailscale status or admin console
+  funnel: false          # Do not use Funnel for gateway
+
+# ---- Vault: internal (chart deploys) or external (you provide address) ----
+vault:
+  enabled: true
+  internal:
+    enabled: true
+    dev: true
+  address: "http://openclaw-vault:8200"   # For external Vault, set your Vault URL
+  existingSecret: "openclaw-vault-gateway-token"
+  secretKey: token
+
+# ---- Gateway (non-secret config) ----
+gateway:
+  port: 18789
+  bind: "loopback"
+  tokenSecretName: "openclaw-gateway-token"
+  tokenSecretKey: "token"
+  discovery:
+    mdns: "off"
+  signal:
+    accountKeyInVault: "openclaw/signal"   # Vault path for Signal credentials
+  moltbook:
+    enabled: false   # Set true if using Moltbook; add credentials in Vault
+  resources:
+    limits:
+      memory: 4G
+      cpu: "4"
+    requests:
+      memory: 512Mi
+      cpu: "100m"
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+  tmpfsSize: "64Mi"
+  extraMounts: []
+
+# ---- Observability (V10: OTel Collector + Prometheus + Grafana + Loki + Alertmanager) ----
+observability:
+  enabled: true
+  # OTLP: in-cluster URL is set automatically; set otlpEndpointTailscale when observability is on another host
+  otlpEndpointTailscale: ""   # e.g. "http://observability:4318"
+  otelCollector:
+    enabled: true
+  prometheus:
+    enabled: true
+  grafana:
+    enabled: true
+    existingSecret: ""       # e.g. openclaw-grafana-admin (create secret with admin-password key)
+    secretKey: admin-password
+  loki:
+    enabled: true
+  alertmanager:
+    enabled: true
+    # config: {}              # Override for Slack/PagerDuty etc.; else route to 'null'
+  mimir:
+    enabled: false            # Optional long-term Prometheus storage
+
+# ---- Ingress controller + TLS (optional; same config file, same Helm command) ----
+# Set haproxy.enabled / certManager.enabled true to install HAProxy + cert-manager with the openclaw chart.
+haproxy:
+  enabled: false
+certManager:
+  enabled: false
+# Optional pass-through to subcharts (only when enabled above):
+# kubernetes-ingress:
+#   controller:
+#     ingressClass: haproxy
+# cert-manager:
+#   installCRDs: true
+
+# ---- Ingress (optional: DNS names; no port-forward) ----
+# Domain is configurable: set ingress.domain (e.g. your-domain.com). Optionally override per-host with gatewayHost, vaultHost, etc.
+# Per V10: restrict access (Tailscale/private).
+ingress:
+  enabled: false
+  className: haproxy   # or "nginx", "traefik"
+  domain: ""           # configurable base domain, e.g. your-domain.com → openclaw.your-domain.com, vault.your-domain.com
+  tls:
+    enabled: false
+    secretName: ""
+  hosts:
+    gateway: true
+    gatewayHost: ""    # optional; default openclaw.{domain}
+    vault: true
+    vaultHost: ""
+    grafana: true
+    grafanaHost: ""
+    prometheus: false
+    prometheusHost: ""
+
+# ---- Sandbox image (optional) ----
+sandbox:
+  image:
+    repository: openclaw-sandbox
+    tag: bookworm-slim

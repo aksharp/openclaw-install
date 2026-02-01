@@ -1,0 +1,59 @@
+{{- if and .Values.vault.enabled .Values.vault.internal.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "openclaw.vault.fullname" . }}
+  namespace: {{ include "openclaw.namespace" . }}
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+    app.kubernetes.io/component: vault
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "openclaw.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: vault
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "openclaw.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: vault
+        {{- include "openclaw.labels" . | nindent 8 }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+      containers:
+        - name: vault
+          image: hashicorp/vault:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - server
+            - -dev
+            - -dev-root-token-id=root
+            - -dev-listen-address=0.0.0.0:8200
+          ports:
+            - name: http
+              containerPort: 8200
+              protocol: TCP
+          env:
+            - name: VAULT_DEV_ROOT_TOKEN_ID
+              value: "root"
+            - name: VAULT_ADDR
+              value: "http://127.0.0.1:8200"
+          resources:
+            limits:
+              memory: 256Mi
+              cpu: "250m"
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - "vault status -address=http://127.0.0.1:8200"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      restartPolicy: Always
+{{- end }}

@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "openclaw.gateway.fullname" . }}-config
+  namespace: {{ include "openclaw.namespace" . }}
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway
+data:
+  # Non-secret gateway config (V10: bind loopback, discovery off, etc.)
+  # Token and API keys come from Vault via entrypoint or env from secret
+  OPENCLAW_GATEWAY_BIND: {{ .Values.gateway.bind | quote }}
+  OPENCLAW_GATEWAY_PORT: {{ .Values.gateway.port | quote }}
+  OPENCLAW_DISCOVERY_MDNS: {{ .Values.gateway.discovery.mdns | quote }}
+  # OTLP endpoint when observability enabled (in-cluster or Tailscale override)
+  {{- if .Values.observability.enabled }}
+  OPENCLAW_OTEL_ENDPOINT: {{ .Values.observability.otlpEndpointTailscale | default (printf "http://%s:4318" (include "openclaw.otel.fullname" .)) | quote }}
+  {{- end }}

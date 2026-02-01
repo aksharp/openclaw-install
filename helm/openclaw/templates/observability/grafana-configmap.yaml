@@ -1,0 +1,25 @@
+{{- if and .Values.observability.enabled .Values.observability.grafana.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "openclaw.grafana.fullname" . }}-datasources
+  namespace: {{ include "openclaw.namespace" . }}
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        url: http://{{ include "openclaw.prometheus.fullname" . }}:9090
+        access: proxy
+        isDefault: true
+      {{- if .Values.observability.loki.enabled }}
+      - name: Loki
+        type: loki
+        url: http://{{ include "openclaw.loki.fullname" . }}:3100
+        access: proxy
+      {{- end }}
+{{- end }}

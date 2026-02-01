@@ -1,0 +1,40 @@
+# ---- openclaw-ingress: HAProxy + cert-manager (TLS) ----
+# Install this chart once per cluster, then install the openclaw chart with ingress.enabled and ingress.domain.
+# Domain is configurable in the openclaw chart (ingress.domain and optional ingress.hosts.*Host overrides).
+
+# ---- HAProxy Kubernetes Ingress Controller ----
+haproxy:
+  enabled: true
+
+# Subchart values for haproxytech/kubernetes-ingress (release name: openclaw-ingress-kubernetes-ingress)
+kubernetes-ingress:
+  controller:
+    ingressClass: haproxy
+    # replicaCount: 1
+  # service:
+  #   type: LoadBalancer  # or NodePort for local clusters
+
+# ---- cert-manager (TLS termination) ----
+certManager:
+  enabled: true
+
+# Subchart values for jetstack/cert-manager
+cert-manager:
+  installCRDs: true
+  # ClusterIssuer for Let's Encrypt (create after install if needed):
+  # kubectl apply -f - <<EOF
+  # apiVersion: cert-manager.io/v1
+  # kind: ClusterIssuer
+  # metadata:
+  #   name: letsencrypt-prod
+  # spec:
+  #   acme:
+  #     server: https://acme-v02.api.letsencrypt.org/directory
+  #     email: you@your-domain.com
+  #     privateKeySecretRef:
+  #       name: letsencrypt-prod
+  #     solvers:
+  #       - http01:
+  #           ingress:
+  #             class: haproxy
+  # EOF

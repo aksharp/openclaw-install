@@ -1,0 +1,59 @@
+{{- if and .Values.observability.enabled .Values.observability.prometheus.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "openclaw.prometheus.fullname" . }}-config
+  namespace: {{ include "openclaw.namespace" . }}
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    scrape_configs:
+      - job_name: 'otel-collector'
+        static_configs:
+          - targets: ['{{ include "openclaw.otel.fullname" . }}:8888']
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+    {{- if .Values.observability.alertmanager.enabled }}
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets: ['{{ include "openclaw.alertmanager.fullname" . }}:9093']
+    {{- end }}
+    rule_files:
+      - /etc/prometheus/rules/*.yaml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "openclaw.prometheus.fullname" . }}-rules
+  namespace: {{ include "openclaw.namespace" . }}
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+data:
+  # V10: gateway down, health failure, security audit, Control UI dangerous flags
+  openclaw-alerts.yaml: |
+    groups:
+      - name: openclaw
+        rules:
+          - alert: OpenClawGatewayDown
+            expr: up{job="otel-collector"} == 0
+            for: 1m
+            labels: { severity: critical }
+            annotations:
+              summary: "OpenClaw OTLP collector/gateway metrics unreachable"
+              description: "OTel collector scrape target is down. Gateway may be down or OTLP disabled."
+          - alert: OpenClawSessionStuck
+            expr: openclaw_session_stuck_age_ms > 300000
+            for: 5m
+            labels: { severity: warning }
+            annotations:
+              summary: "OpenClaw session stuck"
+              description: "Session stuck for > 5 minutes. Inspect session and queue."
+{{- end }}

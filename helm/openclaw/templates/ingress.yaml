@@ -1,0 +1,85 @@
+{{- if and .Values.ingress.enabled .Values.ingress.domain }}
+{{- $domain := .Values.ingress.domain }}
+{{- $gHost := .Values.ingress.hosts.gatewayHost | default (printf "openclaw.%s" $domain) }}
+{{- $vHost := .Values.ingress.hosts.vaultHost | default (printf "vault.%s" $domain) }}
+{{- $gfHost := .Values.ingress.hosts.grafanaHost | default (printf "grafana.%s" $domain) }}
+{{- $pHost := .Values.ingress.hosts.prometheusHost | default (printf "prometheus.%s" $domain) }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "openclaw.fullname" . }}-ingress
+  namespace: {{ include "openclaw.namespace" . }}
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+  # Optional: cert-manager for TLS (use when openclaw-ingress chart or cert-manager is installed)
+  # annotations:
+  #   cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        {{- if .Values.ingress.hosts.gateway }}
+        - {{ $gHost }}
+        {{- end }}
+        {{- if and .Values.vault.enabled .Values.vault.internal.enabled .Values.ingress.hosts.vault }}
+        - {{ $vHost }}
+        {{- end }}
+        {{- if and .Values.observability.enabled .Values.observability.grafana.enabled .Values.ingress.hosts.grafana }}
+        - {{ $gfHost }}
+        {{- end }}
+        {{- if and .Values.observability.enabled .Values.observability.prometheus.enabled .Values.ingress.hosts.prometheus }}
+        - {{ $pHost }}
+        {{- end }}
+      secretName: {{ .Values.ingress.tls.secretName | default (printf "%s-ingress-tls" (include "openclaw.fullname" .)) }}
+  {{- end }}
+  rules:
+    {{- if .Values.ingress.hosts.gateway }}
+    - host: {{ $gHost }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "openclaw.gateway.fullname" . }}
+                port:
+                  number: {{ .Values.gateway.port }}
+    {{- end }}
+    {{- if and .Values.vault.enabled .Values.vault.internal.enabled .Values.ingress.hosts.vault }}
+    - host: {{ $vHost }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "openclaw.vault.fullname" . }}
+                port:
+                  number: 8200
+    {{- end }}
+    {{- if and .Values.observability.enabled .Values.observability.grafana.enabled .Values.ingress.hosts.grafana }}
+    - host: {{ $gfHost }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "openclaw.grafana.fullname" . }}
+                port:
+                  number: 3000
+    {{- end }}
+    {{- if and .Values.observability.enabled .Values.observability.prometheus.enabled .Values.ingress.hosts.prometheus }}
+    - host: {{ $pHost }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "openclaw.prometheus.fullname" . }}
+                port:
+                  number: 9090
+    {{- end }}
+{{- end }}

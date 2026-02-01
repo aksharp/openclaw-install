@@ -1,0 +1,165 @@
+# ---- OpenClaw version (upgradeable: change tag for new stable release) ----
+openclaw:
+  image:
+    repository: ghcr.io/openclaw/openclaw
+    tag: "v1.0.0"
+    pullPolicy: IfNotPresent
+
+# ---- Identity and namespace ----
+nameOverride: ""
+fullnameOverride: ""
+namespaceOverride: ""
+
+# ---- Tailscale (V10) ----
+tailscale:
+  enabled: true
+  # Hostname of this cluster/node in Tailscale (for Serve and observability endpoint)
+  hostname: "openclaw"
+  funnel: false
+
+# ---- Vault ----
+vault:
+  enabled: true
+  internal:
+    enabled: true
+    dev: true
+  address: "http://openclaw-vault:8200"
+  existingSecret: "openclaw-vault-gateway-token"
+  secretKey: token
+
+# ---- Gateway ----
+gateway:
+  port: 18789
+  bind: "loopback"
+  tokenSecretName: "openclaw-gateway-token"
+  tokenSecretKey: "token"
+  discovery:
+    mdns: "off"
+  signal:
+    accountKeyInVault: "openclaw/signal"
+  moltbook:
+    enabled: false
+  resources:
+    limits:
+      memory: 4G
+      cpu: "4"
+    requests:
+      memory: 512Mi
+      cpu: "100m"
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+  tmpfsSize: "64Mi"
+  # No extra mounts (V10)
+  extraMounts: []
+
+# ---- Observability (V10: OTLP collector + Prometheus + Grafana + Loki + Alertmanager) ----
+observability:
+  enabled: true
+  # OTLP: gateway sends metrics/traces here; same host = in-cluster URL or Tailscale hostname
+  otlpEndpoint: "http://openclaw-otel-collector:4318"
+  otlpEndpointTailscale: ""
+  bindAddress: "127.0.0.1"
+  # OTel Collector: receives OTLP, exposes Prometheus scrape endpoint
+  otelCollector:
+    enabled: true
+    image:
+      repository: otel/opentelemetry-collector-contrib
+      tag: "0.96.0"
+      pullPolicy: IfNotPresent
+    resources:
+      limits: { memory: 512Mi, cpu: "500m" }
+      requests: { memory: 128Mi, cpu: "50m" }
+  # Prometheus: scrapes OTel collector and gateway health; stores metrics
+  prometheus:
+    enabled: true
+    image:
+      repository: prom/prometheus
+      tag: "v2.52.0"
+      pullPolicy: IfNotPresent
+    retention: 15d
+    resources:
+      limits: { memory: 1Gi, cpu: "1" }
+      requests: { memory: 256Mi, cpu: "100m" }
+  # Grafana: dashboards; datasources Prometheus + Loki
+  grafana:
+    enabled: true
+    image:
+      repository: grafana/grafana
+      tag: "10.4.1"
+      pullPolicy: IfNotPresent
+    adminPassword: ""   # set via existingSecret or override; required for production
+    existingSecret: "" # e.g. openclaw-grafana-admin
+    secretKey: admin-password
+    resources:
+      limits: { memory: 512Mi, cpu: "500m" }
+      requests: { memory: 128Mi, cpu: "50m" }
+  # Loki: log aggregation (V10: gateway logs, Moltbook, content-safety pipeline)
+  loki:
+    enabled: true
+    image:
+      repository: grafana/loki
+      tag: "3.0.0"
+      pullPolicy: IfNotPresent
+    singleBinary: true
+    resources:
+      limits: { memory: 512Mi, cpu: "500m" }
+      requests: { memory: 128Mi, cpu: "50m" }
+  # Alertmanager: routes alerts (V10: gateway down, health, audit, security issues)
+  alertmanager:
+    enabled: true
+    image:
+      repository: prom/alertmanager
+      tag: "v0.27.0"
+      pullPolicy: IfNotPresent
+    config: {}   # route to Slack/PagerDuty etc.; override in values or configmap
+    resources:
+      limits: { memory: 128Mi, cpu: "100m" }
+      requests: { memory: 64Mi, cpu: "50m" }
+  # Optional: Mimir (long-term Prometheus storage); disable by default
+  mimir:
+    enabled: false
+    image:
+      repository: grafana/mimir
+      tag: "2.11.0"
+      pullPolicy: IfNotPresent
+
+# ---- Ingress controller + TLS (optional: install HAProxy + cert-manager with this chart; all in single config) ----
+haproxy:
+  enabled: false   # set true to install HAProxy Kubernetes Ingress Controller (ingress class haproxy)
+certManager:
+  enabled: false   # set true to install cert-manager for TLS
+
+# Subchart pass-through (only used when haproxy.enabled / certManager.enabled); override in prerequisites.yaml
+kubernetes-ingress:
+  controller:
+    ingressClass: haproxy
+cert-manager:
+  installCRDs: true
+
+# ---- Ingress (optional: DNS names; host-based routing) ----
+# Enables host-based routing so you don't need port-forward. Per V10: restrict access (e.g. Tailscale, private IP).
+# Domain is configurable: set ingress.domain (e.g. your-domain.com) or override per-host with gatewayHost, vaultHost, etc.
+ingress:
+  enabled: false
+  className: haproxy   # or "nginx", "traefik" depending on your Ingress controller
+  domain: ""           # base domain, e.g. your-domain.com → openclaw.your-domain.com, vault.your-domain.com (override per-host below if needed)
+  tls:
+    enabled: false     # set true and provide secretName or use cert-manager (see openclaw-ingress chart)
+    secretName: ""     # optional: pre-created TLS secret; else use cert-manager
+  hosts:
+    gateway: true
+    gatewayHost: ""    # optional override; default openclaw.{domain}
+    vault: true
+    vaultHost: ""      # optional override; default vault.{domain}
+    grafana: true
+    grafanaHost: ""    # optional override; default grafana.{domain}
+    prometheus: false
+    prometheusHost: "" # optional override; default prometheus.{domain}
+
+# ---- Sandbox image (optional) ----
+sandbox:
+  image:
+    repository: openclaw-sandbox
+    tag: bookworm-slim

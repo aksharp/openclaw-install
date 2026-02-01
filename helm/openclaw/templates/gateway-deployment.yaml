@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "openclaw.gateway.fullname" . }}
+  namespace: {{ include "openclaw.namespace" . }}
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "openclaw.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "openclaw.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: gateway
+        {{- include "openclaw.labels" . | nindent 8 }}
+    spec:
+      securityContext:
+        runAsNonRoot: {{ .Values.gateway.securityContext.runAsNonRoot }}
+        runAsUser: {{ .Values.gateway.securityContext.runAsUser }}
+        runAsGroup: {{ .Values.gateway.securityContext.runAsGroup }}
+        fsGroup: {{ .Values.gateway.securityContext.runAsGroup }}
+      containers:
+        - name: gateway
+          image: "{{ .Values.openclaw.image.repository }}:{{ .Values.openclaw.image.tag }}"
+          imagePullPolicy: {{ .Values.openclaw.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.gateway.port }}
+              protocol: TCP
+          env:
+            - name: OPENCLAW_GATEWAY_PORT
+              value: {{ .Values.gateway.port | quote }}
+            - name: VAULT_ADDR
+              value: {{ if .Values.vault.internal.enabled }}{{ printf "http://%s:8200" (include "openclaw.vault.fullname" .) | quote }}{{ else }}{{ .Values.vault.address | quote }}{{ end }}
+            - name: VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.vault.existingSecret }}
+                  key: {{ .Values.vault.secretKey }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "openclaw.gateway.fullname" . }}-config
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: openclaw-data
+              mountPath: /home/node/.openclaw
+          resources:
+            {{- toYaml .Values.gateway.resources | nindent 12 }}
+          # OpenClaw gateway may use a different health path; adjust or remove if needed
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: {{ .Values.gateway.tmpfsSize }}
+        - name: openclaw-data
+          persistentVolumeClaim:
+            claimName: {{ include "openclaw.gateway.fullname" . }}-data
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "openclaw.gateway.fullname" . }}-data
+  namespace: {{ include "openclaw.namespace" . }}
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
