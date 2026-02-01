@@ -1,0 +1,28 @@
+OpenClaw teardown — restore cluster to state before openclaw/ingress was installed
+================================================================================
+
+Run these commands from your machine (requires helm and kubectl):
+
+  # 1. Uninstall OpenClaw (gateway, Vault, observability, HAProxy, cert-manager)
+  helm uninstall {{ .Values.openclaw.releaseName }} -n {{ .Values.openclaw.namespace }} --wait
+
+{{- if .Values.openclawIngress.enabled }}
+
+  # 2. Uninstall standalone openclaw-ingress (if you installed it separately)
+  helm uninstall {{ .Values.openclawIngress.releaseName }} -n {{ .Values.openclawIngress.namespace }} --wait
+{{- end }}
+
+{{- if .Values.deleteNamespaces }}
+
+  # 3. Delete namespaces (full rollback)
+  kubectl delete namespace {{ .Values.openclaw.namespace }} --ignore-not-found --timeout=120s
+  {{- if .Values.openclawIngress.enabled }}
+  kubectl delete namespace {{ .Values.openclawIngress.namespace }} --ignore-not-found --timeout=120s
+  {{- end }}
+{{- end }}
+
+  # 4. Remove this teardown release (optional)
+  helm uninstall {{ .Release.Name }} -n {{ .Release.Namespace }}
+
+Teardown script is stored in ConfigMap {{ include "openclaw-teardown.name" . }}-teardown-script.
+To view: kubectl get configmap {{ include "openclaw-teardown.name" . }}-teardown-script -n {{ .Release.Namespace }} -o yaml

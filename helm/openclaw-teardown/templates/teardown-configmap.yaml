@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "openclaw-teardown.name" . }}-teardown-script
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "openclaw-teardown.labels" . | nindent 4 }}
+data:
+  teardown.sh: |
+    #!/usr/bin/env bash
+    # OpenClaw teardown — run from your machine (requires helm and kubectl)
+    set -e
+    OPENCLAW_RELEASE="{{ .Values.openclaw.releaseName }}"
+    OPENCLAW_NS="{{ .Values.openclaw.namespace }}"
+    DELETE_NS="{{ .Values.deleteNamespaces }}"
+    {{- if .Values.openclawIngress.enabled }}
+    INGRESS_RELEASE="{{ .Values.openclawIngress.releaseName }}"
+    INGRESS_NS="{{ .Values.openclawIngress.namespace }}"
+    {{- end }}
+
+    echo "Uninstalling OpenClaw release '$OPENCLAW_RELEASE' from namespace '$OPENCLAW_NS'..."
+    helm uninstall "$OPENCLAW_RELEASE" -n "$OPENCLAW_NS" --wait 2>/dev/null || true
+
+    {{- if .Values.openclawIngress.enabled }}
+    echo "Uninstalling openclaw-ingress release '$INGRESS_RELEASE' from namespace '$INGRESS_NS'..."
+    helm uninstall "$INGRESS_RELEASE" -n "$INGRESS_NS" --wait 2>/dev/null || true
+    {{- end }}
+
+    if [ "$DELETE_NS" = "true" ]; then
+      echo "Deleting namespace '$OPENCLAW_NS'..."
+      kubectl delete namespace "$OPENCLAW_NS" --ignore-not-found --timeout=120s || true
+      {{- if .Values.openclawIngress.enabled }}
+      echo "Deleting namespace '$INGRESS_NS'..."
+      kubectl delete namespace "$INGRESS_NS" --ignore-not-found --timeout=120s || true
+      {{- end }}
+    fi
+
+    echo "Teardown complete. Cluster state restored."

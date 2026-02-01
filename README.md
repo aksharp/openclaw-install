@@ -1,6 +1,6 @@
 # OpenClaw on Kubernetes (kind) — Step-by-step deployment
 
-This README gives **step-by-step instructions** to: register required accounts and create a prerequisites file, deploy the **Ingress** stack (HAProxy + cert-manager) with a single command, deploy **OpenClaw** (gateway, Vault, observability) with a single command, then verify with **Open Lens** and all URLs (observability, monitors, alerts) and run **debug use cases**.
+This README gives **step-by-step instructions** to: register required accounts and create a prerequisites file, deploy the **Ingress** stack (HAProxy + cert-manager) with a single command, deploy **OpenClaw** (gateway, Vault, observability) with a single command, then verify with **Open Lens** and all URLs (observability, monitors, alerts) and run **debug use cases**. To **teardown** and restore the cluster to its prior state, see [Teardown — Remove OpenClaw and Ingress](#teardown--remove-openclaw-and-ingress) or [helm/openclaw-teardown/README.md](helm/openclaw-teardown/README.md).
 
 Target: **local Kubernetes with kind**. Commands assume you are at the **repository root** unless noted.
 
@@ -264,6 +264,45 @@ kubectl logs -n openclaw -l app.kubernetes.io/component=alertmanager --tail=50
 
 ---
 
+## Teardown — Remove OpenClaw and Ingress
+
+To **roll back** and restore the cluster to the state before anything was installed, use the **openclaw-teardown** chart. It does not uninstall automatically; it prints the exact commands to run.
+
+**1. Install the teardown chart** (from repo root):
+
+```bash
+helm install teardown ./helm/openclaw-teardown -n default
+```
+
+**2. Run the commands from NOTES** (Helm prints them after install). Typically:
+
+```bash
+# Uninstall OpenClaw (gateway, Vault, observability, HAProxy, cert-manager)
+helm uninstall openclaw -n openclaw --wait
+
+# If you installed openclaw-ingress separately, uninstall it too
+helm uninstall openclaw-ingress -n ingress --wait
+
+# Delete namespaces (full rollback)
+kubectl delete namespace openclaw --ignore-not-found --timeout=120s
+kubectl delete namespace ingress --ignore-not-found --timeout=120s
+
+# Optionally remove the teardown release
+helm uninstall teardown -n default
+```
+
+**Custom release/namespace:** If you used different names, copy [helm/openclaw-teardown/teardown-values.yaml.example](helm/openclaw-teardown/teardown-values.yaml.example) to `teardown-values.yaml`, set `openclaw.releaseName` / `openclaw.namespace` (and `openclawIngress.enabled: true` if you used the standalone ingress chart), then:
+
+```bash
+helm install teardown ./helm/openclaw-teardown -f teardown-values.yaml -n default
+```
+
+Then run the commands shown in NOTES.
+
+**Full teardown docs:** [helm/openclaw-teardown/README.md](helm/openclaw-teardown/README.md).
+
+---
+
 ## Summary
 
 | Step | What | Single command / action |
@@ -274,6 +313,8 @@ kubectl logs -n openclaw -l app.kubernetes.io/component=alertmanager --tail=50
 | 4 | OpenClaw: create and deploy (gateway, Vault, observability) | `helm dependency update ./helm/openclaw && helm upgrade --install openclaw ./helm/openclaw -f ./helm/openclaw/prerequisites.yaml -n openclaw --create-namespace` |
 | 5 | Create required secrets (manual) | See Step 5 and [helm/openclaw/docs/PREREQUISITES.md](helm/openclaw/docs/PREREQUISITES.md) Section 5. |
 | 6 | Verify: Lens, URLs, debug | 6.1 Open Lens → add kind cluster; 6.2 Port-forward and open Gateway, Vault, Grafana, Prometheus, Loki, Alertmanager; 6.3 Use debug examples above. |
+| **Teardown** | Remove OpenClaw and Ingress, restore cluster | `helm install teardown ./helm/openclaw-teardown -n default`, then run the commands from NOTES. See [Teardown](#teardown--remove-openclaw-and-ingress) above. |
 
 **Detailed prerequisites and post-install steps:** [helm/openclaw/docs/PREREQUISITES.md](helm/openclaw/docs/PREREQUISITES.md).  
-**Local Kubernetes (kind/minikube/Docker Desktop):** [helm/openclaw/docs/LOCAL-KUBERNETES-MAC.md](helm/openclaw/docs/LOCAL-KUBERNETES-MAC.md).
+**Local Kubernetes (kind/minikube/Docker Desktop):** [helm/openclaw/docs/LOCAL-KUBERNETES-MAC.md](helm/openclaw/docs/LOCAL-KUBERNETES-MAC.md).  
+**Teardown (rollback):** [helm/openclaw-teardown/README.md](helm/openclaw-teardown/README.md).

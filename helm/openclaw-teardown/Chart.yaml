@@ -1,0 +1,10 @@
+apiVersion: v2
+name: openclaw-teardown
+description: Teardown OpenClaw and Ingress — uninstall releases and remove namespaces to restore cluster state
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - openclaw
+  - teardown
+  - uninstall

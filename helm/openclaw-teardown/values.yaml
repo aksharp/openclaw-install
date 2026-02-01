@@ -1,0 +1,19 @@
+# ---------------------------------------------------------------------------
+# OpenClaw teardown — restore cluster to state before openclaw/ingress install
+# Run: helm install teardown ./openclaw-teardown -f teardown-values.yaml -n default
+# Then run the commands printed in NOTES (or run the script from the ConfigMap).
+# ---------------------------------------------------------------------------
+
+# OpenClaw release (main chart: gateway, Vault, observability, HAProxy, cert-manager)
+openclaw:
+  releaseName: openclaw
+  namespace: openclaw
+
+# Optional: standalone openclaw-ingress chart (only if you installed it separately)
+openclawIngress:
+  enabled: false
+  releaseName: openclaw-ingress
+  namespace: ingress
+
+# Delete namespaces after uninstalling releases (recommended for full rollback)
+deleteNamespaces: true
