@@ -24,7 +24,7 @@ Helm chart to deploy [OpenClaw](https://github.com/openclaw/openclaw) following 
   helm dependency update ./helm/openclaw
   helm upgrade --install openclaw ./helm/openclaw -f ./helm/openclaw/prerequisites.yaml -n openclaw --create-namespace
   ```
-  All input is in `prerequisites.yaml`. Optional HAProxy and cert-manager are installed when `haproxy.enabled` and `certManager.enabled` are true.
+  All input is in `prerequisites.yaml`. Ingress is required: HAProxy and cert-manager are always installed; all access is via Ingress hostnames.
 
 **Start here:** [docs/PREREQUISITES.md](docs/PREREQUISITES.md).
 
@@ -49,7 +49,7 @@ All **manual prerequisites** and **non-secret settings** go into **one file** (e
 | **Signal account** | Dedicated phone number for OpenClaw; stored in Vault, not in this file | `gateway.signal.accountKeyInVault` (e.g. `openclaw/signal`) |
 | **Moltbook** | Enable only if you use Moltbook; add Moltbook API key in Vault | `gateway.moltbook.enabled` (true/false) |
 | **Observability** | Same host: OTLP endpoint is set automatically to the in-cluster OTel Collector. Different host: set `observability.otlpEndpointTailscale` to the Tailscale hostname (e.g. `http://observability:4318`). Stack includes Prometheus, Grafana, Loki, Alertmanager (V10). | `observability.*` (enable/disable components) |
-| **Ingress / DNS** | Optional: use HAProxy + TLS via the [openclaw-ingress](../openclaw-ingress/README.md) chart; set **configurable** `ingress.domain` (e.g. your-domain.com) and optional per-host overrides (`gatewayHost`, `vaultHost`, etc.). No port-forward. Per V10: restrict access (Tailscale/private). See [docs/INGRESS-DNS-AND-LENS.md](docs/INGRESS-DNS-AND-LENS.md). | `ingress.enabled`, `ingress.domain`, `ingress.hosts.*Host` (optional overrides) |
+| **Ingress / DNS** | **Required.** All access is via Ingress hostnames. HAProxy and cert-manager are always installed. Set `ingress.domain` (default `openclaw.local`); for production use your domain (e.g. your-domain.com) and add /etc/hosts or DNS. Per V10: restrict access (Tailscale/private). See [docs/INGRESS-DNS-AND-LENS.md](docs/INGRESS-DNS-AND-LENS.md). | `ingress.domain`, `ingress.hosts.*Host` (optional overrides) |
 | **Resource limits** | Optional; defaults are 4G memory, 4 CPU | `gateway.resources` |
 
 #### 1.2 Secrets to create (not in the config file)
@@ -141,8 +141,8 @@ All post-install manual steps (secrets, Vault, Tailscale Serve, Control UI, Sign
 
 ```
 helm/
-├── openclaw/             # Main OpenClaw chart (gateway, Vault, observability, Ingress resource)
-├── openclaw-ingress/    # Optional: HAProxy + cert-manager (TLS); install once per cluster for DNS + TLS
+├── openclaw/             # Main OpenClaw chart (gateway, Vault, observability, Ingress; HAProxy + cert-manager always included)
+├── openclaw-ingress/     # Deprecated: use openclaw chart (Ingress is built-in)
 
 openclaw/
 ├── Chart.yaml
@@ -157,7 +157,7 @@ openclaw/
 │   ├── gateway-*.yaml    # Gateway Deployment, Service, ConfigMap
 │   ├── vault-*.yaml      # Optional internal Vault
 │   ├── observability/   # OTel Collector, Prometheus, Grafana, Loki, Alertmanager
-│   ├── ingress.yaml     # Optional: host-based routing (openclaw.{domain}, vault.{domain})
+│   ├── ingress.yaml     # Ingress resource (openclaw.{domain}, vault.{domain}) — always created when domain is set
 │   └── NOTES.txt        # Post-install checklist
 ```
 
@@ -173,4 +173,4 @@ To extend: add new values under `gateway.*` or `observability.*` with safe defau
 - **Chart design:** [OPENCLAW-HELM-CHART-DESIGN.md](../../OPENCLAW-HELM-CHART-DESIGN.md)
 - **Local Kubernetes on Mac:** [docs/LOCAL-KUBERNETES-MAC.md](docs/LOCAL-KUBERNETES-MAC.md) — Docker Desktop, minikube, kind, and full deploy steps
 - **Single config + all manual steps:** [docs/PREREQUISITES.md](docs/PREREQUISITES.md) — all inputs, how to get them, single Helm command, post-install steps
-- **Ingress, DNS names, Consul, Lens:** [docs/INGRESS-DNS-AND-LENS.md](docs/INGRESS-DNS-AND-LENS.md) — HAProxy + cert-manager (optional deps in this chart); configurable domain; Lens
+- **Ingress, DNS names, Consul, Lens:** [docs/INGRESS-DNS-AND-LENS.md](docs/INGRESS-DNS-AND-LENS.md) — Ingress is required (HAProxy + cert-manager always installed); configurable domain; Lens

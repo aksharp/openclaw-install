@@ -1,5 +1,5 @@
 # ---- openclaw-ingress: HAProxy + cert-manager (TLS) ----
-# Install this chart once per cluster, then install the openclaw chart with ingress.enabled and ingress.domain.
+# DEPRECATED: Prefer the openclaw chart, which always includes Ingress (HAProxy + cert-manager). Use this chart only for standalone Ingress.
 # Domain is configurable in the openclaw chart (ingress.domain and optional ingress.hosts.*Host overrides).
 
 # ---- HAProxy Kubernetes Ingress Controller ----

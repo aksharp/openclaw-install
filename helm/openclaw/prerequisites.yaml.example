@@ -80,37 +80,23 @@ observability:
   mimir:
     enabled: false            # Optional long-term Prometheus storage
 
-# ---- Ingress controller + TLS (optional; same config file, same Helm command) ----
-# Set haproxy.enabled / certManager.enabled true to install HAProxy + cert-manager with the openclaw chart.
-haproxy:
-  enabled: false
-certManager:
-  enabled: false
-# Optional pass-through to subcharts (only when enabled above):
-# kubernetes-ingress:
-#   controller:
-#     ingressClass: haproxy
-# cert-manager:
-#   installCRDs: true
-
-# ---- Ingress (optional: DNS names; no port-forward) ----
-# Domain is configurable: set ingress.domain (e.g. your-domain.com). Optionally override per-host with gatewayHost, vaultHost, etc.
-# Per V10: restrict access (Tailscale/private).
+# ---- Ingress (required: all access is via Ingress hostnames) ----
+# HAProxy + cert-manager are always installed with the openclaw chart. Set ingress.domain (default openclaw.local).
+# Add /etc/hosts or DNS so openclaw.{domain}, vault.{domain}, etc. resolve to the Ingress. Per V10: restrict access (Tailscale/private).
 ingress:
-  enabled: false
-  className: haproxy   # or "nginx", "traefik"
-  domain: ""           # configurable base domain, e.g. your-domain.com → openclaw.your-domain.com, vault.your-domain.com
+  className: haproxy
+  domain: "openclaw.local"   # override for production (e.g. your-domain.com)
   tls:
     enabled: false
     secretName: ""
   hosts:
     gateway: true
-    gatewayHost: ""    # optional; default openclaw.{domain}
+    gatewayHost: ""
     vault: true
     vaultHost: ""
     grafana: true
     grafanaHost: ""
-    prometheus: false
+    prometheus: true
     prometheusHost: ""
 
 # ---- Sandbox image (optional) ----

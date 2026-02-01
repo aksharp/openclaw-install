@@ -1,5 +1,7 @@
 # openclaw-ingress Helm Chart
 
+**Deprecated:** Ingress is now **built into the [openclaw](../openclaw) chart**. Use the openclaw chart; Ingress is required there. Use this chart only if you need a standalone HAProxy + cert-manager install (e.g. shared across multiple releases).
+
 This chart installs **HAProxy Kubernetes Ingress Controller** and **cert-manager** (TLS) for use with the [openclaw](../openclaw) chart. It provides:
 
 - **HAProxy** — Ingress controller (ingress class `haproxy`) for host-based routing (e.g. openclaw.{domain}, vault.{domain}).

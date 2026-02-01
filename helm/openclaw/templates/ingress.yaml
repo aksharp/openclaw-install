@@ -1,5 +1,4 @@
-{{- if and .Values.ingress.enabled .Values.ingress.domain }}
-{{- $domain := .Values.ingress.domain }}
+{{- $domain := required "ingress.domain is a required prerequisite; set it in values or prerequisites.yaml (e.g. openclaw.local or your-domain.com)" .Values.ingress.domain }}
 {{- $gHost := .Values.ingress.hosts.gatewayHost | default (printf "openclaw.%s" $domain) }}
 {{- $vHost := .Values.ingress.hosts.vaultHost | default (printf "vault.%s" $domain) }}
 {{- $gfHost := .Values.ingress.hosts.grafanaHost | default (printf "grafana.%s" $domain) }}
@@ -82,4 +81,3 @@ spec:
                 port:
                   number: 9090
     {{- end }}
-{{- end }}

@@ -134,9 +134,10 @@ observability:
 
 ### 4.4 Install or upgrade the chart (single command)
 
-From the **repository root**:
+From the **repository root**. This installs the gateway, Vault, observability, **and** HAProxy + cert-manager (Ingress is required):
 
 ```bash
+helm dependency update ./helm/openclaw
 helm upgrade --install openclaw ./helm/openclaw \
   -f ./helm/openclaw/prerequisites.yaml \
   -n openclaw \
@@ -174,47 +175,25 @@ Release name is `openclaw` and chart name is `openclaw`, so the full prefix is `
 
 ---
 
-## 5. Access services locally (port-forward)
+## 5. Access services (Ingress only)
 
-The chart uses **ClusterIP** services (no LoadBalancer). Use **port-forward** to reach them from your Mac.
+Access is **via Ingress only**. No per-service port-forwarding. Ingress is required; the openclaw chart always installs HAProxy.
 
-### Gateway (Control UI)
+1. **Port-forward once to the HAProxy Ingress controller** (on kind, LoadBalancer has no external IP). The controller is in the release namespace: `kubectl get svc -n openclaw` and look for the HAProxy service (e.g. `openclaw-kubernetes-ingress`):
+   ```bash
+   kubectl port-forward svc/openclaw-kubernetes-ingress 8080:80 -n openclaw
+   ```
 
-```bash
-kubectl port-forward svc/openclaw-openclaw-gateway 18789:18789 -n openclaw
-```
+2. **Add hostnames to `/etc/hosts`** (use the domain from `prerequisites.yaml`, default `openclaw.local`):
+   ```
+   127.0.0.1 openclaw.openclaw.local vault.openclaw.local grafana.openclaw.local prometheus.openclaw.local
+   ```
 
-Then open **http://localhost:18789** (or https if your config uses TLS).
-
-### Vault (to populate secrets)
-
-```bash
-kubectl port-forward svc/openclaw-openclaw-vault 8200:8200 -n openclaw
-```
-
-Then use the Vault CLI or UI at **http://127.0.0.1:8200** to enable KV and add gateway/Signal secrets. Create a policy and token for the gateway and store that token in the `openclaw-vault-gateway-token` secret.
-
-### Grafana (dashboards)
-
-```bash
-kubectl port-forward svc/openclaw-openclaw-grafana 3000:3000 -n openclaw
-```
-
-Open **http://localhost:3000**. Log in with `admin` and the password you set (or the default if you didn’t set one; see chart defaults).
-
-### Prometheus (metrics UI)
-
-```bash
-kubectl port-forward svc/openclaw-openclaw-prometheus 9090:9090 -n openclaw
-```
-
-Open **http://localhost:9090**.
-
-### Loki (logs API; optional for browser testing)
-
-```bash
-kubectl port-forward svc/openclaw-openclaw-loki 3100:3100 -n openclaw
-```
+3. **Open in browser** (port 8080):
+   - **Gateway (Control UI):** http://openclaw.openclaw.local:8080
+   - **Vault:** http://vault.openclaw.local:8080 (enable KV, add gateway/Signal secrets, create policy and token)
+   - **Grafana:** http://grafana.openclaw.local:8080
+   - **Prometheus:** http://prometheus.openclaw.local:8080
 
 ---
 
@@ -223,7 +202,7 @@ kubectl port-forward svc/openclaw-openclaw-loki 3100:3100 -n openclaw
 After the first install, complete the steps printed in **NOTES** (and in the main [README](../README.md)):
 
 1. **Populate Vault** — Port-forward Vault, enable KV, add `openclaw/gateway` and `openclaw/signal`, create gateway policy and token, update the `openclaw-vault-gateway-token` secret.
-2. **Control UI** — Open the gateway (port-forward above), paste the gateway token in Settings.
+2. **Control UI** — Open the gateway via Ingress (http://openclaw.openclaw.local:8080), paste the gateway token in Settings.
 3. **Signal** — Link and approve pairings via CLI or Control UI.
 4. **Security audit** — e.g. `kubectl exec -it deployment/openclaw-openclaw-gateway -n openclaw -- openclaw security audit --fix`.
 
@@ -238,7 +217,7 @@ For **production** you would use **Tailscale** (Serve for the gateway, no Funnel
 - **Local cluster:** After starting Docker Desktop / minikube / kind and deploying the chart, open Lens → it will pick up your default kubeconfig. Add the cluster (or switch context) if needed. No port-forward or Ingress is required for Lens; it talks to the API server like `kubectl`.
 - **Remote cluster:** Ensure the API server is reachable (e.g. via Tailscale or VPN) and your kubeconfig points at it; then add that cluster in Lens.
 
-For DNS names (e.g. openclaw.my-domain.com) and avoiding port-forward for *browsers*, see [INGRESS-DNS-AND-LENS.md](INGRESS-DNS-AND-LENS.md) (Ingress + HAProxy/NGINX).
+Access is via Ingress hostnames only; see [INGRESS-DNS-AND-LENS.md](INGRESS-DNS-AND-LENS.md) for details.
 
 ---
 

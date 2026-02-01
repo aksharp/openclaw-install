@@ -1,34 +1,22 @@
-# Ingress (HAProxy / NGINX), DNS names, Consul, and Lens
+# Ingress (HAProxy), DNS names, Consul, and Lens
 
-This doc explains how to get **DNS names** (e.g. `openclaw.my-domain.com`, `vault.my-domain.com`) and **avoid port-forwarding**, when **Consul** helps (and when it doesn’t), and how **Lens** connects to your cluster.
+**Access is via Ingress only.** This doc explains how **Ingress** (HAProxy + the chart’s Ingress resource) provides **DNS-style hostnames** (e.g. `openclaw.openclaw.local`, `vault.openclaw.local`) so you access everything through one entry point—no per-service port-forwarding. Also: when **Consul** helps (and when it doesn’t), and how **Lens** connects to your cluster.
 
 ---
 
-## 1. Ingress + DNS: no port-forward and friendly hostnames
+## 1. Ingress + DNS: the only access path
 
-**Goal:** Access OpenClaw, Vault, Grafana, etc. via URLs like `openclaw.my-domain.com`, `vault.my-domain.com`, `grafana.my-domain.com` instead of running multiple `kubectl port-forward` commands.
+**Goal:** Access OpenClaw, Vault, Grafana, Prometheus, etc. via hostnames (e.g. `openclaw.{domain}`, `vault.{domain}`, `grafana.{domain}`). There is no per-service port-forward option; HAProxy is the single entry point and routes by **Host** header to the right Service.
 
-**How:** Use a **Kubernetes Ingress controller** (HAProxy or NGINX) and the chart’s **Ingress** resource. The controller is the single entry point (e.g. :80 / :443); it routes by **Host** header to the right Service. No port-forward needed for you.
+### 1.1 HAProxy and TLS (built into the OpenClaw chart)
 
-### 1.1 HAProxy and TLS (openclaw-ingress chart)
-
-1. **Install openclaw-ingress** (HAProxy + cert-manager, one-time per cluster):
-
-   ```bash
-   cd helm/openclaw-ingress
-   helm dependency update
-   helm upgrade --install openclaw-ingress . -n ingress --create-namespace -f values.yaml
-   ```
-
-   This installs the HAProxy Kubernetes Ingress Controller (ingress class `haproxy`) and cert-manager. The OpenClaw chart’s Ingress uses that class when you set `ingress.className: haproxy`.
-
-2. **Enable Ingress in the OpenClaw chart** and set your **configurable domain** in `prerequisites.yaml` (or your values file):
+1. **The OpenClaw chart always installs HAProxy and cert-manager.** Ingress is required. When you install the openclaw chart, the HAProxy Kubernetes Ingress Controller (ingress class `haproxy`) and cert-manager are installed as dependencies. The chart's Ingress resource uses `ingress.className: haproxy`.
+2. **Set the Ingress domain** in `prerequisites.yaml`. Default: `ingress.domain: openclaw.local`. Override for production (e.g. `your-domain.com`):
 
    ```yaml
    ingress:
-     enabled: true
      className: haproxy
-     domain: your-domain.com   # configurable: e.g. my-domain.com → openclaw.your-domain.com, vault.your-domain.com
+     domain: openclaw.local   # or your-domain.com for production
      tls:
        enabled: true
        secretName: ""            # cert-manager creates secret when cluster-issuer annotation is set
@@ -45,7 +33,7 @@ This doc explains how to get **DNS names** (e.g. `openclaw.my-domain.com`, `vaul
 
    You can override any host with a different name (e.g. `gatewayHost: app.example.org`).
 
-3. **Point DNS** for your domain at the Ingress controller (openclaw-ingress installs the controller):
+3. **Point DNS** for your domain at the Ingress controller (the openclaw chart installs the controller in the release namespace):
 
    - **Cloud / LoadBalancer:** The HAProxy Helm chart typically exposes a LoadBalancer Service. Get its external IP/hostname and create DNS A/CNAME records:
      - `openclaw.my-domain.com` → that IP/hostname  
@@ -53,9 +41,10 @@ This doc explains how to get **DNS names** (e.g. `openclaw.my-domain.com`, `vaul
      - `grafana.my-domain.com` → same  
    - **Local (Docker Desktop / minikube / kind):** Use a local DNS override (e.g. `/etc/hosts`) or a local DNS server so `openclaw.my-domain.com` etc. resolve to the Ingress endpoint (e.g. `127.0.0.1` or minikube IP). For minikube: `minikube tunnel` or NodePort + `minikube ip`.
 
-4. **Upgrade the release** so the Ingress resource is created:
+4. **Install or upgrade the release** (the Ingress resource is always created when `ingress.domain` is set):
 
    ```bash
+   helm dependency update ./helm/openclaw
    helm upgrade --install openclaw ./helm/openclaw -f prerequisites.yaml -n openclaw --create-namespace
    ```
 
@@ -63,14 +52,13 @@ You then use **https://openclaw.my-domain.com**, **https://vault.my-domain.com**
 
 ### 1.2 NGINX Ingress instead of HAProxy
 
-If you prefer NGINX Ingress:
+If you prefer NGINX Ingress instead of HAProxy:
 
-1. Install the [NGINX Ingress controller](https://kubernetes.github.io/ingress-nginx/deploy/) (e.g. via Helm or manifest).
+1. Do **not** rely on the chart's built-in HAProxy; install the [NGINX Ingress controller](https://kubernetes.github.io/ingress-nginx/deploy/) (e.g. via Helm or manifest) and disable or override the chart's HAProxy dependency if your setup supports it.
 2. In your OpenClaw values set:
 
    ```yaml
    ingress:
-     enabled: true
      className: nginx
      domain: my-domain.com
      # ... same as above
@@ -149,7 +137,7 @@ So: **use Ingress for DNS names and no port-forward; use Lens with your existing
 
 | Need | Use |
 |------|-----|
-| No port-forward + DNS names (openclaw.my-domain.com, vault.my-domain.com) | **Ingress** (HAProxy or NGINX) + chart `ingress.enabled` + real DNS or Tailscale DNS |
+| No port-forward + DNS names (openclaw.my-domain.com, vault.my-domain.com) | **Ingress** (HAProxy or NGINX) — chart always uses Ingress; set `ingress.domain` + real DNS or Tailscale DNS |
 | Service discovery inside the cluster | **Kubernetes Services/DNS** (already there) |
 | Multi-DC, service mesh, Consul-specific features | **Consul** (optional; not required for DNS or port-forward) |
 | Connect with Lens | **Kubeconfig** + reachable API server; no chart changes |

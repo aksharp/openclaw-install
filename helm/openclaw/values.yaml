@@ -125,38 +125,31 @@ observability:
       tag: "2.11.0"
       pullPolicy: IfNotPresent
 
-# ---- Ingress controller + TLS (optional: install HAProxy + cert-manager with this chart; all in single config) ----
-haproxy:
-  enabled: false   # set true to install HAProxy Kubernetes Ingress Controller (ingress class haproxy)
-certManager:
-  enabled: false   # set true to install cert-manager for TLS
-
-# Subchart pass-through (only used when haproxy.enabled / certManager.enabled); override in prerequisites.yaml
+# ---- Ingress controller + TLS (always installed; access is via Ingress only — no Option B) ----
+# HAProxy Kubernetes Ingress Controller and cert-manager are always installed with this chart.
 kubernetes-ingress:
   controller:
     ingressClass: haproxy
 cert-manager:
   installCRDs: true
 
-# ---- Ingress (optional: DNS names; host-based routing) ----
-# Enables host-based routing so you don't need port-forward. Per V10: restrict access (e.g. Tailscale, private IP).
-# Domain is configurable: set ingress.domain (e.g. your-domain.com) or override per-host with gatewayHost, vaultHost, etc.
+# ---- Ingress (required: all access is via host-based routing; no per-service port-forward) ----
+# HAProxy routes by hostname (openclaw.{domain}, vault.{domain}, grafana.{domain}, etc.). Per V10: restrict access (e.g. Tailscale, private IP).
 ingress:
-  enabled: false
-  className: haproxy   # or "nginx", "traefik" depending on your Ingress controller
-  domain: ""           # base domain, e.g. your-domain.com → openclaw.your-domain.com, vault.your-domain.com (override per-host below if needed)
+  className: haproxy
+  domain: "openclaw.local"   # base domain; override for production (e.g. your-domain.com). Use /etc/hosts or DNS.
   tls:
-    enabled: false     # set true and provide secretName or use cert-manager (see openclaw-ingress chart)
-    secretName: ""     # optional: pre-created TLS secret; else use cert-manager
+    enabled: false     # set true and provide secretName or use cert-manager for TLS
+    secretName: ""
   hosts:
     gateway: true
-    gatewayHost: ""    # optional override; default openclaw.{domain}
+    gatewayHost: ""
     vault: true
-    vaultHost: ""      # optional override; default vault.{domain}
+    vaultHost: ""
     grafana: true
-    grafanaHost: ""    # optional override; default grafana.{domain}
-    prometheus: false
-    prometheusHost: "" # optional override; default prometheus.{domain}
+    grafanaHost: ""
+    prometheus: true   # observability UIs via Ingress
+    prometheusHost: ""
 
 # ---- Sandbox image (optional) ----
 sandbox:

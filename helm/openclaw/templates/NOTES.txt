@@ -45,9 +45,7 @@ Next steps (summary):
    - Access dashboards via Tailscale (production) or port-forward (local). Configure Alertmanager (Slack/PagerDuty) in values.
 {{- end }}
 
-{{- if and .Values.ingress.enabled .Values.ingress.domain }}
-8. Ingress (DNS names): If your Ingress controller (e.g. openclaw-ingress chart) is installed and DNS points at it, use your configurable hosts (e.g. https://openclaw.{{ .Values.ingress.domain }}, https://vault.{{ .Values.ingress.domain }}, or overrides in ingress.hosts.*Host). Per V10: restrict access (Tailscale/private). See docs/INGRESS-DNS-AND-LENS.md.
-{{- end }}
+Access is via Ingress only. Add /etc/hosts or DNS so openclaw.{{ .Values.ingress.domain }}, vault.{{ .Values.ingress.domain }}, grafana.{{ .Values.ingress.domain }}, prometheus.{{ .Values.ingress.domain }} resolve to the HAProxy Ingress controller. Port-forward once to the HAProxy service (e.g. kubectl port-forward svc/{{ .Release.Name }}-kubernetes-ingress 8080:80 -n {{ include "openclaw.namespace" . }}), then open http://openclaw.{{ .Values.ingress.domain }}:8080 etc. Per V10: restrict access (Tailscale/private). See docs/INGRESS-DNS-AND-LENS.md and README Step 6.2.
 
 For full checklist see: OPENCLAW-DOCKER-SECURE-INSTALL-V10.md
 For local Kubernetes on Mac: helm/openclaw/docs/LOCAL-KUBERNETES-MAC.md

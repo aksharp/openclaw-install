@@ -26,8 +26,7 @@ Use this table to **gather** each value (manual step), then put it in the correc
 | **Moltbook** | Decide if you use Moltbook; if yes, you will add Moltbook API key in Vault later. | `gateway.moltbook.enabled` (true/false) |
 | **Observability: same vs different host** | **Same host:** Leave `observability.otlpEndpointTailscale` empty (in-cluster URL is used). **Different host:** Note the Tailscale hostname of the observability host (e.g. `http://observability:4318`). | `observability.enabled`, `observability.otlpEndpointTailscale`; enable/disable `observability.grafana`, `observability.prometheus`, `observability.loki`, `observability.alertmanager` |
 | **Grafana admin password** | Choose a password; you will create a Kubernetes secret (see Section 4). Optionally set `observability.grafana.existingSecret` and `secretKey`. | `observability.grafana.existingSecret`, `observability.grafana.secretKey` |
-| **Ingress / DNS domain** | Choose your base domain (e.g. `your-domain.com`). You will point DNS (or Tailscale DNS / `/etc/hosts`) so that `openclaw.your-domain.com`, `vault.your-domain.com`, etc. resolve to the Ingress controller. Per V10: restrict access (Tailscale/private). | `ingress.enabled`, `ingress.domain`; optional `ingress.hosts.gatewayHost`, `vaultHost`, `grafanaHost`, `prometheusHost` |
-| **HAProxy + TLS (Ingress controller)** | If you want the chart to install HAProxy and cert-manager (one command), set both to true. Otherwise install an Ingress controller separately and set `ingress.className` to match. | `haproxy.enabled` (true/false), `certManager.enabled` (true/false) |
+| **Ingress / DNS domain** | **Required (prerequisite).** All access is via Ingress hostnames. The chart always installs HAProxy and cert-manager. Set `ingress.domain` (default `openclaw.local`); for production use your domain (e.g. `your-domain.com`) and point DNS or `/etc/hosts` so `openclaw.{domain}`, `vault.{domain}`, etc. resolve to the Ingress controller. Per V10: restrict access (Tailscale/private). | `ingress.domain` (default openclaw.local); optional `ingress.hosts.gatewayHost`, `vaultHost`, etc. |
 | **TLS for Ingress** | If using cert-manager: set `ingress.tls.enabled: true`; create a ClusterIssuer after install (see Section 4). If using a pre-created secret: set `ingress.tls.secretName`. | `ingress.tls.enabled`, `ingress.tls.secretName` |
 | **Resource limits** | Optional; defaults are 4G memory, 4 CPU for the gateway. Adjust if needed. | `gateway.resources` |
 
@@ -48,9 +47,8 @@ Use this table to **gather** each value (manual step), then put it in the correc
    - `gateway.moltbook.enabled` — true/false.
    - `observability.enabled` and components (grafana, prometheus, loki, alertmanager) as desired.
    - `observability.otlpEndpointTailscale` — only if observability is on another host.
-   - `ingress.enabled`, `ingress.domain` — if you want DNS names (e.g. openclaw.your-domain.com).
-   - `ingress.tls.enabled` — if you want TLS at the Ingress.
-   - `haproxy.enabled`, `certManager.enabled` — true if you want the chart to install HAProxy and cert-manager (single command).
+   - `ingress.domain` — required prerequisite; default is `openclaw.local`; override for production (e.g. your-domain.com). HAProxy and cert-manager are always installed.
+   - `ingress.tls.enabled` — set true for TLS at the Ingress (and configure cert-manager ClusterIssuer).
 
 3. **Optional overrides:** Set any of the per-host overrides (`ingress.hosts.gatewayHost`, etc.), namespace, or resource limits as needed. All keys are in [values.yaml](../values.yaml).
 
@@ -65,7 +63,7 @@ helm dependency update ./helm/openclaw
 helm upgrade --install openclaw ./helm/openclaw -f ./helm/openclaw/prerequisites.yaml -n openclaw --create-namespace
 ```
 
-- **First run:** installs the release (and optional HAProxy + cert-manager if enabled in prerequisites.yaml).
+- **First run:** installs the release (HAProxy + cert-manager are always installed with the chart).
 - **Later runs:** upgrade the same release (e.g. after changing `openclaw.image.tag` or other values).
 - **All input** is in `prerequisites.yaml`; no extra flags needed for normal use.
 - Use a different namespace if you set it: replace `openclaw` with your namespace in both `-n` and in the config if you use `namespaceOverride`.
@@ -130,7 +128,7 @@ kubectl exec -it deployment/<gateway-deployment-name> -n openclaw -- openclaw se
 
 (Deployment name is e.g. `openclaw-openclaw-gateway`.)
 
-### 5.7 TLS / cert-manager (if you enabled Ingress + cert-manager)
+### 5.7 TLS / cert-manager (Ingress is always enabled)
 
 - Create a ClusterIssuer (e.g. Let's Encrypt) so cert-manager can issue certificates for your Ingress hosts. Example:
   ```bash
@@ -153,7 +151,7 @@ kubectl exec -it deployment/<gateway-deployment-name> -n openclaw -- openclaw se
   ```
 - Add the annotation to the OpenClaw Ingress (or set it in values): `cert-manager.io/cluster-issuer: letsencrypt-prod`.
 
-### 5.8 Point DNS at the Ingress (if using Ingress)
+### 5.8 Point DNS at the Ingress
 
 - Point `openclaw.<your-domain>`, `vault.<your-domain>`, `grafana.<your-domain>` (and any overrides) to the Ingress controller's LoadBalancer IP or NodePort. Use Tailscale DNS, `/etc/hosts`, or your DNS provider. Per V10: do not expose to the public internet; use Tailscale or private IP.
 
