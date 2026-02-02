@@ -1,0 +1,31 @@
+# ---------------------------------------------------------------------------
+# OpenClaw Terraform — copy to terraform.tfvars and set values.
+# Do NOT commit terraform.tfvars (contains secrets); add to .gitignore.
+# ---------------------------------------------------------------------------
+
+namespace         = "openclaw"
+release_name      = "openclaw"
+chart_path        = "../helm/openclaw"
+openclaw_image_tag = "v1.0.0"
+ingress_domain    = "openclaw.local"
+tailscale_hostname = "openclaw"
+
+# App secrets (stored in K8s Secret; chart Job pushes to Vault)
+gateway_token      = ""   # required: your OpenClaw gateway token
+openai_api_key     = ""   # optional
+anthropic_api_key  = ""   # optional
+signal_account     = ""   # optional: e.g. +1234567890
+
+vault_app_secrets_secret_name = "openclaw-vault-app-secrets"
+
+# DNS (Cloudflare) — leave zone_id empty to skip
+cloudflare_zone_id = ""
+ingress_ip         = ""   # set after first apply (get from: kubectl get svc -n openclaw -l app.kubernetes.io/name=kubernetes-ingress)
+dns_ttl            = 300
+
+# Tailscale provider auth (set TAILSCALE_API_KEY env or OAuth variables)
+# tailscale_oauth_client_id     = ""
+# tailscale_oauth_client_secret  = ""
+
+# cert-manager (optional)
+# cert_manager_issuer_email = "you@example.com"
