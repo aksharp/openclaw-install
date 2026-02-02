@@ -1,0 +1,9 @@
+dependencies:
+- name: kubernetes-ingress
+  repository: https://haproxytech.github.io/helm-charts
+  version: 1.46.1
+- name: cert-manager
+  repository: https://charts.jetstack.io
+  version: v1.16.2
+digest: sha256:f3c1a5817565c2b1af88459b565ef4cde8a70d291dc1f8b900d9688dc430c43a
+generated: "2026-02-01T20:02:31.167943-05:00"

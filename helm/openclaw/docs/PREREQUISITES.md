@@ -81,13 +81,20 @@ helm upgrade --install openclaw . -f prerequisites.yaml -n openclaw --create-nam
 
 These steps are **not** automated by the chart; do them after the Helm command. All are documented here in one place.
 
-### 5.1 Create Kubernetes secrets
+### 5.1 Populate Vault (if internal Vault is enabled)
 
-- **Gateway token:** Generate a token (e.g. random string); create the secret:
-  ```bash
-  kubectl create secret generic openclaw-gateway-token --from-literal=token=<GATEWAY_TOKEN> -n openclaw
-  ```
-- **Vault token (if using Vault):** After populating Vault and creating a policy/token for the gateway, create the secret:
+The gateway reads the **gateway token** and API keys from Vault (path `openclaw/gateway`), not from a Kubernetes secret. Do this first so you have a Vault token to store in 5.2.
+
+1. Port-forward: `kubectl port-forward svc/openclaw-openclaw-vault 8200:8200 -n openclaw` (if you used a different release or chart name, the service is `<release>-<chart>-vault`).
+2. Enable KV: `vault secrets enable -path=openclaw kv-v2`.
+3. Put gateway secrets (include **gateway_token** here; the gateway reads it from Vault):  
+   `vault kv put openclaw/gateway gateway_token=<YOUR_GATEWAY_TOKEN> openai_api_key=... anthropic_api_key=...`.
+4. Put Signal: `vault kv put openclaw/signal account=+1...` (and any other keys your gateway expects).
+5. Create a Vault policy that allows read on `openclaw/*` and create a token for the gateway; you will store that token in the Kubernetes secret in 5.2.
+
+### 5.2 Create Kubernetes secrets
+
+- **Vault token (required when using Vault):** After populating Vault and creating a policy/token for the gateway (5.1), create the secret so the gateway can authenticate to Vault:
   ```bash
   kubectl create secret generic openclaw-vault-gateway-token --from-literal=token=<VAULT_TOKEN> -n openclaw
   ```
@@ -96,13 +103,7 @@ These steps are **not** automated by the chart; do them after the Helm command. 
   kubectl create secret generic openclaw-grafana-admin --from-literal=admin-password=<PASSWORD> -n openclaw
   ```
 
-### 5.2 Populate Vault (if internal Vault is enabled)
-
-1. Port-forward: `kubectl port-forward svc/<vault-service-name> 8200:8200 -n openclaw` (service name is `<release>-<chart>-vault`, e.g. `openclaw-openclaw-vault`).
-2. Enable KV: `vault secrets enable -path=openclaw kv-v2`.
-3. Put gateway secrets: `vault kv put openclaw/gateway gateway_token=... openai_api_key=... anthropic_api_key=...`.
-4. Put Signal: `vault kv put openclaw/signal account=+1...` (and any other keys your gateway expects).
-5. Create a Vault policy that allows read on `openclaw/*` and create a token for the gateway; store that token in the Kubernetes secret `openclaw-vault-gateway-token` (see 5.1).
+You do **not** create a Kubernetes secret for the gateway token; it lives in Vault at `openclaw/gateway` as `gateway_token`.
 
 ### 5.3 Configure Tailscale Serve (V10)
 
@@ -114,7 +115,7 @@ These steps are **not** automated by the chart; do them after the Helm command. 
 
 - Via Tailscale: `https://<tailscale.hostname>` (after Serve is configured).
 - Or port-forward: `kubectl port-forward svc/<gateway-service-name> 18789:18789 -n openclaw`.
-- Open the Control UI and paste the gateway token in Settings.
+- Open the Control UI and paste the gateway token in Settings (the same token you put in Vault at `openclaw/gateway` as `gateway_token`).
 
 ### 5.5 Link Signal and approve pairings
 

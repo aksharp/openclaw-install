@@ -9,7 +9,7 @@ Helm chart to deploy [OpenClaw](https://github.com/openclaw/openclaw) following 
 - **Helm 3**
 - **Kubernetes** cluster (any supported version). For local development on Mac, see [Running Kubernetes locally (macOS)](docs/LOCAL-KUBERNETES-MAC.md) (Docker Desktop, minikube, or kind).
 - **Tailscale** (V10): join the cluster or node to your tailnet for remote access; do **not** use Funnel for the gateway
-- **Secrets**: gateway token, Vault token (if using Vault), and optionally API keys—created manually or via your secret manager (see [docs/PREREQUISITES.md](docs/PREREQUISITES.md))
+- **Secrets**: gateway token and API keys go in **Vault** (path `openclaw/gateway`); only the **Vault token** is stored as a Kubernetes secret so the gateway can authenticate to Vault (see [docs/PREREQUISITES.md](docs/PREREQUISITES.md))
 
 ---
 
@@ -58,8 +58,8 @@ Create these **before or after** the first `helm upgrade --install` (see NOTES a
 
 | Secret | Purpose | Example |
 |--------|---------|--------|
-| **Gateway token** | Token for Control UI and API access | `kubectl create secret generic openclaw-gateway-token --from-literal=token=<GATEWAY_TOKEN> -n openclaw` |
-| **Vault token** (if using Vault) | Token the gateway uses to read from Vault | `kubectl create secret generic openclaw-vault-gateway-token --from-literal=token=<VAULT_TOKEN> -n openclaw` |
+| **Gateway token** | Token for Control UI and API access; stored in **Vault** at `openclaw/gateway` as `gateway_token` (not a K8s secret) | Put in Vault when you run `vault kv put openclaw/gateway gateway_token=...` (see PREREQUISITES.md Section 5). |
+| **Vault token** (if using Vault) | Token the gateway uses to authenticate to Vault | `kubectl create secret generic openclaw-vault-gateway-token --from-literal=token=<VAULT_TOKEN> -n openclaw` (after creating the token in Vault). |
 
 If you use **internal Vault**, you also populate Vault with:
 

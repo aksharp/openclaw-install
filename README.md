@@ -1,6 +1,6 @@
 # OpenClaw on Kubernetes (kind) — Step-by-step deployment
 
-This README gives **step-by-step instructions** to: register required accounts and create a prerequisites file, deploy the **Ingress** stack (HAProxy + cert-manager) with a single command, deploy **OpenClaw** (gateway, Vault, observability) with a single command, then verify with **Open Lens** and all URLs (observability, monitors, alerts) and run **debug use cases**. To **teardown** and restore the cluster to its prior state, see [Teardown — Remove OpenClaw and Ingress](#teardown--remove-openclaw-and-ingress) or [helm/openclaw-teardown/README.md](helm/openclaw-teardown/README.md).
+This README gives **step-by-step instructions** to: register required accounts and create a prerequisites file, deploy **OpenClaw** (gateway, Vault, observability, HAProxy Ingress, cert-manager) with a single command, then verify with **Open Lens** and all URLs (observability, monitors, alerts) and run **debug use cases**. To **teardown** and restore the cluster to its prior state, see [Teardown — Remove OpenClaw and Ingress](#teardown--remove-openclaw-and-ingress) or [helm/openclaw-teardown/README.md](helm/openclaw-teardown/README.md).
 
 Target: **local Kubernetes with kind**. Commands assume you are at the **repository root** unless noted.
 
@@ -25,7 +25,7 @@ Target: **local Kubernetes with kind**. Commands assume you are at the **reposit
 | **Tailscale (optional for local)** | [Join Tailscale](https://tailscale.com/download); on the node run `tailscale status` and note the machine name (e.g. `openclaw-local`). For local-only you can use a placeholder like `openclaw-local`. |
 | **Signal account** | Use a **dedicated** phone number for OpenClaw; you will store credentials in Vault later. Only the Vault path goes in config (e.g. `openclaw/signal`). |
 | **Vault** | For local/kind: use **internal** Vault (chart deploys it). No account to register. |
-| **Grafana admin password** | Choose a password; you will create a Kubernetes secret after deploy (see Step 5). |
+| **Grafana admin password** | Choose a password; you will create a Kubernetes secret after deploy (see Step 4). |
 | **Gateway token** | Generate a random string (e.g. `openssl rand -hex 24`); you will create a Kubernetes secret after deploy. |
 | **Domain (optional)** | For Ingress DNS names (e.g. `openclaw.local`); for kind you can use `openclaw.local` and add it to `/etc/hosts`. |
 
@@ -49,7 +49,7 @@ Edit `helm/openclaw/prerequisites.yaml` and set at least:
 - **observability.enabled** — `true` (Grafana, Prometheus, Loki, Alertmanager).
 - **ingress** — Required. All access is via Ingress hostnames. HAProxy + cert-manager are always installed with the chart. Set `ingress.domain` (default `openclaw.local`).
 
-Do **not** put secrets (gateway token, Grafana password, API keys) in this file; you create Kubernetes secrets after deploy (Step 5).
+Do **not** put secrets in this file; the gateway token and API keys go in Vault; you create the Vault token Kubernetes secret after deploy (Step 4).
 
 Full reference for every key: [helm/openclaw/docs/PREREQUISITES.md](helm/openclaw/docs/PREREQUISITES.md).
 
@@ -57,7 +57,7 @@ Full reference for every key: [helm/openclaw/docs/PREREQUISITES.md](helm/opencla
 
 ## Step 2 — Create kind cluster
 
-Create a local Kubernetes cluster with kind **before** deploying Ingress or OpenClaw. The `kubectl` checks in Steps 3 and 4 need this cluster.
+Create a local Kubernetes cluster with kind **before** deploying OpenClaw. The steps below assume this cluster exists.
 
 From the **repository root** (or any directory):
 
@@ -76,34 +76,9 @@ Your context will be **kind-openclaw**.
 
 ---
 
-## Step 3 — Ingress: single command (create and deploy)
+## Step 3 — OpenClaw: single command (create and deploy)
 
-One command installs and deploys the **openclaw-ingress** chart (HAProxy Kubernetes Ingress Controller + cert-manager): it creates all deployment artifacts and runs the Ingress stack in the cluster.
-
-From the **repository root**:
-
-```bash
-helm dependency update ./helm/openclaw-ingress && helm upgrade --install openclaw-ingress ./helm/openclaw-ingress -f ./helm/openclaw-ingress/values.yaml -n ingress --create-namespace
-```
-
-- **First run:** installs the release (HAProxy + cert-manager).
-- **Later runs:** upgrades the same release.
-- All Ingress-related config is in `helm/openclaw-ingress/values.yaml`; override with `-f my-values.yaml` if needed.
-
-Verify:
-
-```bash
-kubectl get pods -n ingress
-kubectl get svc -n ingress
-```
-
-You should see HAProxy and cert-manager pods and services.
-
----
-
-## Step 4 — OpenClaw: single command (create and deploy)
-
-One command installs and deploys the **openclaw** chart (gateway, Vault, OTel Collector, Prometheus, Grafana, Loki, Alertmanager, optional Ingress resource): it creates all deployment artifacts and runs OpenClaw in the cluster.
+One command installs and deploys the **openclaw** chart: gateway, Vault, OTel Collector, Prometheus, Grafana, Loki, Alertmanager, **HAProxy Ingress**, and **cert-manager**. All in one release; do **not** install the separate openclaw-ingress chart.
 
 From the **repository root**:
 
@@ -111,7 +86,7 @@ From the **repository root**:
 helm dependency update ./helm/openclaw && helm upgrade --install openclaw ./helm/openclaw -f ./helm/openclaw/prerequisites.yaml -n openclaw --create-namespace
 ```
 
-- **First run:** installs the release (and optional HAProxy + cert-manager if enabled in `prerequisites.yaml`).
+- **First run:** installs the release (gateway, Vault, observability, HAProxy, cert-manager).
 - **Later runs:** upgrades the same release.
 - All input is in `helm/openclaw/prerequisites.yaml`.
 
@@ -123,18 +98,18 @@ kubectl get deployments -n openclaw
 kubectl get svc -n openclaw
 ```
 
-You should see: gateway, vault, otel-collector, prometheus, grafana, loki, alertmanager (and optionally HAProxy/cert-manager if enabled in prerequisites).
+You should see: gateway, vault, otel-collector, prometheus, grafana, loki, alertmanager, and HAProxy/cert-manager (all in namespace `openclaw`).
 
 ---
 
-## Step 5 — Create required secrets (manual, one-time)
+## Step 4 — Create required secrets (manual, one-time)
 
-Replace placeholders with your values:
+The gateway reads the **gateway token** from Vault (path `openclaw/gateway` as `gateway_token`), not from a Kubernetes secret. So you populate Vault first, then create only the **Vault token** Kubernetes secret:
+
+1. **Populate Vault** (port-forward, enable KV, put `openclaw/gateway` with `gateway_token=...` and API keys, put `openclaw/signal`, create policy and token).  
+2. **Create the Vault token secret** (so the gateway can authenticate to Vault):
 
 ```bash
-# Gateway token (use a random string, e.g. openssl rand -hex 24)
-kubectl create secret generic openclaw-gateway-token --from-literal=token=YOUR_GATEWAY_TOKEN -n openclaw
-
 # Vault token (after populating Vault: create policy + token, then use that token here)
 kubectl create secret generic openclaw-vault-gateway-token --from-literal=token=YOUR_VAULT_TOKEN -n openclaw
 
@@ -142,34 +117,32 @@ kubectl create secret generic openclaw-vault-gateway-token --from-literal=token=
 kubectl create secret generic openclaw-grafana-admin --from-literal=admin-password=YOUR_GRAFANA_PASSWORD -n openclaw
 ```
 
-Then populate Vault (port-forward, enable KV, put gateway/Signal secrets, create policy and token). Full steps: [helm/openclaw/docs/PREREQUISITES.md](helm/openclaw/docs/PREREQUISITES.md) Section 5.
+Full steps (order: populate Vault, then create K8s secret): [helm/openclaw/docs/PREREQUISITES.md](helm/openclaw/docs/PREREQUISITES.md) Section 5.
 
 ---
 
-## Step 6 — After deployment: verify and debug
+## Step 5 — After deployment: verify and debug
 
-### 6.1 Connect Open Lens to verify deployments
+### 5.1 Connect Open Lens to verify deployments
 
 1. **Install [Open Lens](https://k8slens.dev/)** (or Lens Desktop) if you have not.
 2. **Add the kind cluster:** Open Lens → **Catalog** or **File → Add Cluster**. Lens uses your default kubeconfig (`~/.kube/config`). The kind cluster appears as **kind-openclaw** (or the context name from `kubectl config current-context`).
 3. **Select the cluster** and connect. You should see the cluster dashboard.
-4. **Verify deployments:** In Lens, go to **Workloads → Deployments** and filter by namespace:
-   - **ingress:** `openclaw-ingress-kubernetes-ingress`, cert-manager components.
-   - **openclaw:** `openclaw-openclaw-gateway`, `openclaw-openclaw-vault`, `openclaw-openclaw-otel-collector`, `openclaw-openclaw-prometheus`, `openclaw-openclaw-grafana`, `openclaw-openclaw-loki`, `openclaw-openclaw-alertmanager`.
-5. **Check pods:** Workloads → Pods; ensure pods in `openclaw` and `ingress` are Running.
+4. **Verify deployments:** In Lens, go to **Workloads → Deployments** and filter by namespace **openclaw**. You should see: `openclaw-openclaw-gateway`, `openclaw-openclaw-vault`, `openclaw-openclaw-otel-collector`, `openclaw-openclaw-prometheus`, `openclaw-openclaw-grafana`, `openclaw-openclaw-loki`, `openclaw-openclaw-alertmanager`, and HAProxy/cert-manager (e.g. `openclaw-kubernetes-ingress`).
+5. **Check pods:** Workloads → Pods; ensure pods in `openclaw` are Running.
 6. **Check logs:** Click a pod → Logs to inspect container logs.
 
 No extra cluster configuration is needed; Lens uses the same kubeconfig as `kubectl`.
 
 ---
 
-### 6.2 Connect to all URLs (observability, monitors, alerts)
+### 5.2 Connect to all URLs (observability, monitors, alerts)
 
-Access is **via Ingress only**. HAProxy routes by hostname to each service—one entry point, no per-service port-forwarding.
+Access is **via Ingress only**. HAProxy (in namespace `openclaw`) routes by hostname to each service—one entry point, no per-service port-forwarding.
 
-1. **Reach the Ingress controller.** On **kind**, the HAProxy service is often `LoadBalancer` with no external IP. Port-forward **once** to the HAProxy service. Get the service name with `kubectl get svc -n ingress` (e.g. `openclaw-ingress-kubernetes-ingress`):
+1. **Reach the Ingress controller.** On **kind**, the HAProxy service has no external IP. Port-forward **once** to the HAProxy service in namespace `openclaw`. Get the service name with `kubectl get svc -n openclaw` (e.g. `openclaw-kubernetes-ingress`):
    ```bash
-   kubectl port-forward svc/openclaw-ingress-kubernetes-ingress 8080:80 -n ingress
+   kubectl port-forward svc/openclaw-kubernetes-ingress 8080:80 -n openclaw
    ```
    (Use 443 → 8443 if TLS is configured.)
 
@@ -188,7 +161,7 @@ Access is **via Ingress only**. HAProxy routes by hostname to each service—one
 
 ---
 
-### 6.3 Debug use case examples
+### 5.3 Debug use case examples
 
 **1. Gateway pod not Ready**
 
@@ -198,7 +171,7 @@ kubectl describe pod -n openclaw -l app.kubernetes.io/component=gateway
 kubectl logs -n openclaw -l app.kubernetes.io/component=gateway --tail=100
 ```
 
-Common causes: missing secret `openclaw-gateway-token` or `openclaw-vault-gateway-token`; Vault not reachable. Fix: create secrets (Step 6.4); ensure Vault pod is running and gateway has correct `VAULT_ADDR`.
+Common causes: missing secret `openclaw-vault-gateway-token`; Vault not reachable; or gateway token not in Vault at `openclaw/gateway`. Fix: populate Vault with `gateway_token` and create the Vault token secret (Step 4); ensure Vault pod is running and gateway has correct `VAULT_ADDR`.
 
 **2. No metrics in Prometheus**
 
@@ -277,21 +250,17 @@ helm install teardown ./helm/openclaw-teardown -n default
 **2. Run the commands from NOTES** (Helm prints them after install). Typically:
 
 ```bash
-# Uninstall OpenClaw (gateway, Vault, observability, HAProxy, cert-manager)
+# Uninstall OpenClaw (gateway, Vault, observability, HAProxy, cert-manager — all in one release)
 helm uninstall openclaw -n openclaw --wait
 
-# If you installed openclaw-ingress separately, uninstall it too
-helm uninstall openclaw-ingress -n ingress --wait
-
-# Delete namespaces (full rollback)
+# Delete namespace (full rollback)
 kubectl delete namespace openclaw --ignore-not-found --timeout=120s
-kubectl delete namespace ingress --ignore-not-found --timeout=120s
 
 # Optionally remove the teardown release
 helm uninstall teardown -n default
 ```
 
-**Custom release/namespace:** If you used different names, copy [helm/openclaw-teardown/teardown-values.yaml.example](helm/openclaw-teardown/teardown-values.yaml.example) to `teardown-values.yaml`, set `openclaw.releaseName` / `openclaw.namespace` (and `openclawIngress.enabled: true` if you used the standalone ingress chart), then:
+**Custom release/namespace:** If you used different names, copy [helm/openclaw-teardown/teardown-values.yaml.example](helm/openclaw-teardown/teardown-values.yaml.example) to `teardown-values.yaml`, set `openclaw.releaseName` / `openclaw.namespace` (and `openclawIngress.enabled: true` only if you previously installed the deprecated standalone openclaw-ingress chart), then:
 
 ```bash
 helm install teardown ./helm/openclaw-teardown -f teardown-values.yaml -n default
@@ -309,11 +278,10 @@ Then run the commands shown in NOTES.
 |------|------|--------------------------|
 | 1 | Register accounts, get prerequisites, create `prerequisites.yaml` | Copy example, edit `helm/openclaw/prerequisites.yaml` (see 1.1–1.2). |
 | 2 | Create kind cluster | `kind create cluster --name openclaw` (do this before deploying). |
-| 3 | Ingress: create and deploy (HAProxy + cert-manager) | `helm dependency update ./helm/openclaw-ingress && helm upgrade --install openclaw-ingress ./helm/openclaw-ingress -f ./helm/openclaw-ingress/values.yaml -n ingress --create-namespace` |
-| 4 | OpenClaw: create and deploy (gateway, Vault, observability) | `helm dependency update ./helm/openclaw && helm upgrade --install openclaw ./helm/openclaw -f ./helm/openclaw/prerequisites.yaml -n openclaw --create-namespace` |
-| 5 | Create required secrets (manual) | See Step 5 and [helm/openclaw/docs/PREREQUISITES.md](helm/openclaw/docs/PREREQUISITES.md) Section 5. |
-| 6 | Verify: Lens, URLs, debug | 6.1 Open Lens → add kind cluster; 6.2 Port-forward and open Gateway, Vault, Grafana, Prometheus, Loki, Alertmanager; 6.3 Use debug examples above. |
-| **Teardown** | Remove OpenClaw and Ingress, restore cluster | `helm install teardown ./helm/openclaw-teardown -n default`, then run the commands from NOTES. See [Teardown](#teardown--remove-openclaw-and-ingress) above. |
+| 3 | OpenClaw: create and deploy (gateway, Vault, observability, HAProxy, cert-manager) | `helm dependency update ./helm/openclaw && helm upgrade --install openclaw ./helm/openclaw -f ./helm/openclaw/prerequisites.yaml -n openclaw --create-namespace` |
+| 4 | Create required secrets (manual) | See Step 4 and [helm/openclaw/docs/PREREQUISITES.md](helm/openclaw/docs/PREREQUISITES.md) Section 5. |
+| 5 | Verify: Lens, URLs, debug | 5.1 Open Lens → add kind cluster; 5.2 Port-forward to HAProxy in `openclaw` and open Gateway, Vault, Grafana, Prometheus; 5.3 Use debug examples above. |
+| **Teardown** | Remove OpenClaw and restore cluster | `helm install teardown ./helm/openclaw-teardown -n default`, then run the commands from NOTES. See [Teardown](#teardown--remove-openclaw-and-ingress) above. |
 
 **Detailed prerequisites and post-install steps:** [helm/openclaw/docs/PREREQUISITES.md](helm/openclaw/docs/PREREQUISITES.md).  
 **Local Kubernetes (kind/minikube/Docker Desktop):** [helm/openclaw/docs/LOCAL-KUBERNETES-MAC.md](helm/openclaw/docs/LOCAL-KUBERNETES-MAC.md).  

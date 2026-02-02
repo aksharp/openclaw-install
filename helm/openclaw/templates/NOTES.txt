@@ -4,16 +4,15 @@ All manual steps (secrets, Vault, Tailscale, Signal, audit, TLS, DNS) are in: do
 
 Next steps (summary):
 
-1. Create Kubernetes secrets (if not using Vault for all):
-   - Gateway token:  kubectl create secret generic openclaw-gateway-token --from-literal=token=<GATEWAY_TOKEN> -n {{ include "openclaw.namespace" . }}
-   - Vault token:    kubectl create secret generic openclaw-vault-gateway-token --from-literal=token=<VAULT_TOKEN> -n {{ include "openclaw.namespace" . }}
-
-2. Populate Vault (if internal Vault is enabled):
+1. Populate Vault (if internal Vault is enabled): put gateway token and API keys in Vault; gateway reads them from there (no K8s secret for gateway token).
    - Port-forward:  kubectl port-forward svc/{{ include "openclaw.vault.fullname" . }} 8200:8200 -n {{ include "openclaw.namespace" . }}
    - Enable KV:      vault secrets enable -path=openclaw kv-v2
    - Put secrets:    vault kv put openclaw/gateway gateway_token=... openai_api_key=... anthropic_api_key=...
    - Put signal:     vault kv put openclaw/signal account=+1...
-   - Create policy and token for gateway; store token in secret openclaw-vault-gateway-token
+   - Create policy and token for gateway; store that token in the K8s secret below.
+
+2. Create Kubernetes secret for Vault token only (so gateway can authenticate to Vault):
+   - Vault token:    kubectl create secret generic openclaw-vault-gateway-token --from-literal=token=<VAULT_TOKEN> -n {{ include "openclaw.namespace" . }}
 
 3. Configure Tailscale Serve (V10):
    - Join this cluster/node to Tailscale; do NOT use Funnel for the gateway.
@@ -22,7 +21,7 @@ Next steps (summary):
 4. Access Control UI:
    - Via Tailscale:  https://{{ .Values.tailscale.hostname }} (after Serve is configured)
    - Or port-forward: kubectl port-forward svc/{{ include "openclaw.gateway.fullname" . }} {{ .Values.gateway.port }}:{{ .Values.gateway.port }} -n {{ include "openclaw.namespace" . }}
-   - Paste gateway token in Control UI (Settings → token).
+   - Paste gateway token in Control UI (Settings → token); use the same token you put in Vault at openclaw/gateway as gateway_token.
 
 5. Link Signal and approve pairings:
    - Run openclaw pairing list signal and openclaw pairing approve signal <CODE> (via CLI pod or Control UI).

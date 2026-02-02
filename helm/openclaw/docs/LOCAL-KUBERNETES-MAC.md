@@ -98,22 +98,18 @@ For **local use only**, you can leave Vault internal, keep observability enabled
 kubectl create namespace openclaw
 ```
 
-### 4.3 Create required secrets
+### 4.3 Populate Vault and create Vault token secret
 
-The gateway needs a token and (if using Vault) a Vault token. Create secrets **before** or **after** the first install; the gateway will use them when present.
+The gateway reads the **gateway token** from Vault (path `openclaw/gateway` as `gateway_token`), not from a Kubernetes secret. So you populate Vault first (port-forward, enable KV, put `openclaw/gateway` with `gateway_token=...` and API keys, put `openclaw/signal`, create policy and token), then create only the **Vault token** Kubernetes secret:
 
 ```bash
-# Replace <GATEWAY_TOKEN> and <VAULT_TOKEN> with your values
-kubectl create secret generic openclaw-gateway-token \
-  --from-literal=token=<GATEWAY_TOKEN> \
-  -n openclaw
-
+# After populating Vault and creating a policy/token for the gateway:
 kubectl create secret generic openclaw-vault-gateway-token \
   --from-literal=token=<VAULT_TOKEN> \
   -n openclaw
 ```
 
-If you use **internal Vault**, you can use a placeholder Vault token for the first install, then populate Vault and create a real token (see [README](../README.md) and NOTES after install).
+You do **not** create a Kubernetes secret for the gateway token; it lives in Vault. Full order of steps: [PREREQUISITES.md](PREREQUISITES.md) Section 5 (5.1 Populate Vault, then 5.2 Create Kubernetes secrets).
 
 **Grafana (optional):** To set an admin password via secret:
 
