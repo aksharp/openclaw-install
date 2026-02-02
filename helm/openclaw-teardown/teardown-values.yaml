@@ -8,10 +8,4 @@ openclaw:
   releaseName: openclaw
   namespace: openclaw
 
-# Set true only if you installed the standalone openclaw-ingress chart
-openclawIngress:
-  enabled: false
-  releaseName: openclaw-ingress
-  namespace: ingress
-
 deleteNamespaces: true

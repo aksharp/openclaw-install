@@ -1,6 +1,6 @@
 # OpenClaw on Kubernetes (kind) — Step-by-step deployment
 
-This README gives **step-by-step instructions** to: register required accounts and create a prerequisites file, deploy **OpenClaw** (gateway, Vault, observability, HAProxy Ingress, cert-manager) with a single command, then verify with **Open Lens** and all URLs (observability, monitors, alerts) and run **debug use cases**. To **teardown** and restore the cluster to its prior state, see [Teardown — Remove OpenClaw and Ingress](#teardown--remove-openclaw-and-ingress) or [helm/openclaw-teardown/README.md](helm/openclaw-teardown/README.md).
+This README gives **step-by-step instructions** to: register required accounts and create a prerequisites file, deploy **OpenClaw** (gateway, Vault, observability, HAProxy Ingress, cert-manager) with a single command, then verify with **Open Lens** and all URLs (observability, monitors, alerts) and run **debug use cases**. To **teardown** and restore the cluster to its prior state, see [Teardown — Remove OpenClaw](#teardown--remove-openclaw) or [helm/openclaw-teardown/README.md](helm/openclaw-teardown/README.md).
 
 Target: **local Kubernetes with kind**. Commands assume you are at the **repository root** unless noted.
 
@@ -238,7 +238,7 @@ kubectl logs -n openclaw -l app.kubernetes.io/component=alertmanager --tail=50
 
 ---
 
-## Teardown — Remove OpenClaw and Ingress
+## Teardown — Remove OpenClaw
 
 To **roll back** and restore the cluster to the state before anything was installed, use the **openclaw-teardown** chart. It does not uninstall automatically; it prints the exact commands to run.
 
@@ -261,7 +261,7 @@ kubectl delete namespace openclaw --ignore-not-found --timeout=120s
 helm uninstall teardown -n default
 ```
 
-**Custom release/namespace:** If you used different names, copy [helm/openclaw-teardown/teardown-values.yaml.example](helm/openclaw-teardown/teardown-values.yaml.example) to `teardown-values.yaml`, set `openclaw.releaseName` / `openclaw.namespace` (and `openclawIngress.enabled: true` only if you previously installed the deprecated standalone openclaw-ingress chart), then:
+**Custom release/namespace:** If you used different names, copy [helm/openclaw-teardown/teardown-values.yaml.example](helm/openclaw-teardown/teardown-values.yaml.example) to `teardown-values.yaml`, set `openclaw.releaseName` / `openclaw.namespace`, then:
 
 ```bash
 helm install teardown ./helm/openclaw-teardown -f teardown-values.yaml -n default
@@ -282,7 +282,7 @@ Then run the commands shown in NOTES.
 | 3 | OpenClaw: create and deploy (gateway, Vault, observability, HAProxy, cert-manager) | `helm dependency update ./helm/openclaw && helm upgrade --install openclaw ./helm/openclaw -f ./helm/openclaw/prerequisites.yaml -n openclaw --create-namespace` |
 | 4 | Create required secrets (manual) | See Step 4 and [helm/openclaw/docs/PREREQUISITES.md](helm/openclaw/docs/PREREQUISITES.md) Section 5. |
 | 5 | Verify: Lens, URLs, debug | 5.1 Open Lens → add kind cluster; 5.2 Port-forward to HAProxy in `openclaw` and open Gateway, Vault, Grafana, Prometheus; 5.3 Use debug examples above. |
-| **Teardown** | Remove OpenClaw and restore cluster | `helm install teardown ./helm/openclaw-teardown -n default`, then run the commands from NOTES. See [Teardown](#teardown--remove-openclaw-and-ingress) above. |
+| **Teardown** | Remove OpenClaw and restore cluster | `helm install teardown ./helm/openclaw-teardown -n default`, then run the commands from NOTES. See [Teardown](#teardown--remove-openclaw) above. |
 
 **Detailed prerequisites and post-install steps:** [helm/openclaw/docs/PREREQUISITES.md](helm/openclaw/docs/PREREQUISITES.md).  
 **Local Kubernetes (kind/minikube/Docker Desktop):** [helm/openclaw/docs/LOCAL-KUBERNETES-MAC.md](helm/openclaw/docs/LOCAL-KUBERNETES-MAC.md).  
