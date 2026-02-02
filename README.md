@@ -12,6 +12,7 @@ Target: **local Kubernetes with kind**. Commands assume you are at the **reposit
 - **kubectl** — [Install](https://kubernetes.io/docs/tasks/tools/install-kubectl/) (e.g. `brew install kubectl`).
 - **Helm 3** — [Install](https://helm.sh/docs/intro/install/) (e.g. `brew install helm`).
 - **kind** — [Install](https://kind.sigs.k8s.io/docs/user/quick-start/#installation) (e.g. `brew install kind`).
+- **Vault CLI** — Required for populating Vault (Section 5.1 in [PREREQUISITES.md](helm/openclaw/docs/PREREQUISITES.md)). macOS: `brew tap hashicorp/tap && brew install hashicorp/tap/vault`. Other platforms: [Vault downloads](https://developer.hashicorp.com/vault/downloads).
 
 ---
 

@@ -1,0 +1,17 @@
+# ---------------------------------------------------------------------------
+# OpenClaw teardown — copy to teardown-values.yaml and adjust if needed
+# Run: helm install teardown ./openclaw-teardown -f teardown-values.yaml -n default
+# Then run the commands printed in NOTES.
+# ---------------------------------------------------------------------------
+
+openclaw:
+  releaseName: openclaw
+  namespace: openclaw
+
+# Set true only if you installed the standalone openclaw-ingress chart
+openclawIngress:
+  enabled: false
+  releaseName: openclaw-ingress
+  namespace: ingress
+
+deleteNamespaces: true

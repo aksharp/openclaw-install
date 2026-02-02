@@ -4,8 +4,11 @@ All manual steps (secrets, Vault, Tailscale, Signal, audit, TLS, DNS) are in: do
 
 Next steps (summary):
 
-1. Populate Vault (if internal Vault is enabled): put gateway token and API keys in Vault; gateway reads them from there (no K8s secret for gateway token).
-   - Port-forward:  kubectl port-forward svc/{{ include "openclaw.vault.fullname" . }} 8200:8200 -n {{ include "openclaw.namespace" . }}
+1. Populate Vault (if internal Vault is enabled): internal Vault runs in server mode (non-root); init and unseal first, then enable KV and put secrets. See docs/PREREQUISITES.md Section 5.1.
+   - Port-forward to the Vault pod (it is 0/1 Ready until unseal): kubectl port-forward pod/<vault-pod-name> 8200:8200 -n {{ include "openclaw.namespace" . }}
+   - Init (once):   vault operator init -key-shares=1 -key-threshold=1
+   - Unseal:        vault operator unseal <Unseal_Key_1>
+   - Set VAULT_ADDR=http://127.0.0.1:8200 and VAULT_TOKEN=<Initial_Root_Token>
    - Enable KV:      vault secrets enable -path=openclaw kv-v2
    - Put secrets:    vault kv put openclaw/gateway gateway_token=... openai_api_key=... anthropic_api_key=...
    - Put signal:     vault kv put openclaw/signal account=+1...

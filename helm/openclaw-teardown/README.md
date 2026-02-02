@@ -22,9 +22,11 @@ It does **not** run uninstall automatically. It installs a **ConfigMap** with a 
 helm install teardown ./helm/openclaw-teardown -n default
 ```
 
-Or with overrides if you used different release names or namespaces:
+Or with overrides if you used different release names or namespaces (copy from example first):
 
 ```bash
+cp helm/openclaw-teardown/teardown-values.yaml.example helm/openclaw-teardown/teardown-values.yaml
+# Edit teardown-values.yaml if needed (release names, namespaces)
 helm install teardown ./helm/openclaw-teardown -n default -f helm/openclaw-teardown/teardown-values.yaml
 ```
 

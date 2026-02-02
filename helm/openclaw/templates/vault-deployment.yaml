@@ -22,25 +22,32 @@ spec:
         app.kubernetes.io/component: vault
         {{- include "openclaw.labels" . | nindent 8 }}
     spec:
+      # Vault runs in server mode (file storage); no capabilities needed; run as non-root.
+      # Bypass image entrypoint (it chowns read-only config and sets CAP_SETFCAP); run vault server directly.
       securityContext:
         runAsNonRoot: true
         runAsUser: 100
+        runAsGroup: 100
+        fsGroup: 100
       containers:
         - name: vault
           image: hashicorp/vault:latest
           imagePullPolicy: IfNotPresent
-          args:
+          command:
+            - vault
             - server
-            - -dev
-            - -dev-root-token-id=root
-            - -dev-listen-address=0.0.0.0:8200
+            - -config=/vault/config/config.hcl
+          volumeMounts:
+            - name: config
+              mountPath: /vault/config
+              readOnly: true
+            - name: data
+              mountPath: /vault/data
           ports:
             - name: http
               containerPort: 8200
               protocol: TCP
           env:
-            - name: VAULT_DEV_ROOT_TOKEN_ID
-              value: "root"
             - name: VAULT_ADDR
               value: "http://127.0.0.1:8200"
           resources:
@@ -55,5 +62,11 @@ spec:
                 - "vault status -address=http://127.0.0.1:8200"
             initialDelaySeconds: 5
             periodSeconds: 5
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "openclaw.vault.fullname" . }}-config
+        - name: data
+          emptyDir: {}
       restartPolicy: Always
 {{- end }}

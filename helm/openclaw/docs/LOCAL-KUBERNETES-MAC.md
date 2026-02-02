@@ -21,6 +21,7 @@ You can use any of these; pick one.
 - **kubectl** — [Install](https://kubernetes.io/docs/tasks/tools/install-kubectl/) (e.g. `brew install kubectl`).
 - **Helm 3** — [Install](https://helm.sh/docs/intro/install/) (e.g. `brew install helm`).
 - **Docker** — Required for Docker Desktop and for kind; optional driver for minikube.
+- **Vault CLI** — Required for populating Vault (Section 5.1 in [PREREQUISITES.md](PREREQUISITES.md)). macOS: `brew tap hashicorp/tap && brew install hashicorp/tap/vault`. Other platforms: [Vault downloads](https://developer.hashicorp.com/vault/downloads).
 
 ---
 

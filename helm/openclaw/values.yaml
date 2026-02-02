@@ -22,7 +22,7 @@ vault:
   enabled: true
   internal:
     enabled: true
-    dev: true
+    # Internal Vault always runs in server mode (file storage, non-root). Init and unseal required (see PREREQUISITES 5.1).
   address: "http://openclaw-vault:8200"
   existingSecret: "openclaw-vault-gateway-token"
   secretKey: token

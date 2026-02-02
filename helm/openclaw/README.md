@@ -45,7 +45,7 @@ All **manual prerequisites** and **non-secret settings** go into **one file** (e
 | **OpenClaw version** | [GitHub releases](https://github.com/openclaw/openclaw/releases) — pick latest stable | `openclaw.image.tag` (e.g. `v1.2.3`) |
 | **Namespace** | Choose a dedicated namespace (e.g. `openclaw`) | `--namespace` and/or override in values |
 | **Tailscale hostname** | Tailscale admin or `tailscale status` on the node that will run OpenClaw | `tailscale.hostname` (e.g. `openclaw-prod`) |
-| **Vault** | Internal: chart deploys Vault in dev mode; address is the in-cluster service. External: your Vault URL | `vault.address` (internal default: `http://openclaw-vault:8200`) |
+| **Vault** | Internal: chart deploys Vault in server mode (file storage, non-root); init and unseal required (PREREQUISITES 5.1); address is the in-cluster service. External: your Vault URL | `vault.address` (internal default: `http://openclaw-vault:8200`) |
 | **Signal account** | Dedicated phone number for OpenClaw; stored in Vault, not in this file | `gateway.signal.accountKeyInVault` (e.g. `openclaw/signal`) |
 | **Moltbook** | Enable only if you use Moltbook; add Moltbook API key in Vault | `gateway.moltbook.enabled` (true/false) |
 | **Observability** | Same host: OTLP endpoint is set automatically to the in-cluster OTel Collector. Different host: set `observability.otlpEndpointTailscale` to the Tailscale hostname (e.g. `http://observability:4318`). Stack includes Prometheus, Grafana, Loki, Alertmanager (V10). | `observability.*` (enable/disable components) |
