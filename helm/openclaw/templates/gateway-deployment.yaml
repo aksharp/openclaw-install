@@ -1,3 +1,32 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "openclaw.gateway.fullname" . }}-wait-secret
+  namespace: {{ include "openclaw.namespace" . }}
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: [{{ .Values.vault.existingSecret | quote }}]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "openclaw.gateway.fullname" . }}-wait-secret
+  namespace: {{ include "openclaw.namespace" . }}
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "openclaw.gateway.fullname" . }}-wait-secret
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: {{ include "openclaw.namespace" . }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -26,6 +55,30 @@ spec:
         runAsUser: {{ .Values.gateway.securityContext.runAsUser }}
         runAsGroup: {{ .Values.gateway.securityContext.runAsGroup }}
         fsGroup: {{ .Values.gateway.securityContext.runAsGroup }}
+      initContainers:
+        - name: wait-for-vault-token
+          image: alpine:3.19
+          command:
+            - /bin/sh
+            - -c
+            - |
+              apk add --no-cache curl
+              KUBE_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+              KUBE_CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+              NS="{{ include "openclaw.namespace" . }}"
+              SECRET="{{ .Values.vault.existingSecret }}"
+              echo "Waiting for vault gateway token secret..."
+              for i in $(seq 1 90); do
+                if curl -sSf -H "Authorization: Bearer $KUBE_TOKEN" --cacert "$KUBE_CA" \
+                  "https://kubernetes.default.svc/api/v1/namespaces/$NS/secrets/$SECRET" >/dev/null 2>&1; then
+                  echo "Secret found."
+                  exit 0
+                fi
+                echo "Attempt $i/90: secret not found, waiting 5s..."
+                sleep 5
+              done
+              echo "Timeout waiting for secret"
+              exit 1
       containers:
         - name: gateway
           image: "{{ .Values.openclaw.image.repository }}:{{ .Values.openclaw.image.tag }}"

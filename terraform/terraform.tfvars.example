@@ -18,14 +18,12 @@ signal_account     = ""   # optional: e.g. +1234567890
 
 vault_app_secrets_secret_name = "openclaw-vault-app-secrets"
 
-# DNS (Cloudflare) — leave zone_id empty to skip
-cloudflare_zone_id = ""
-ingress_ip         = ""   # set after first apply (get from: kubectl get svc -n openclaw -l app.kubernetes.io/name=kubernetes-ingress)
-dns_ttl            = 300
-
-# Tailscale provider auth (set TAILSCALE_API_KEY env or OAuth variables)
+# Tailscale provider auth (optional)
+tailscale_api_key = ""   # or set TAILSCALE_API_KEY env
 # tailscale_oauth_client_id     = ""
 # tailscale_oauth_client_secret  = ""
+
+# DNS (Cloudflare) — optional; run from terraform/cloudflare/ when needed
 
 # cert-manager (optional)
 # cert_manager_issuer_email = "you@example.com"

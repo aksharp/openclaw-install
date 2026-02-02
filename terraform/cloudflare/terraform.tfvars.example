@@ -1,0 +1,8 @@
+# Copy to terraform.tfvars and set values.
+# Run from terraform/cloudflare/ after main apply.
+
+cloudflare_api_token = ""   # or TF_VAR_cloudflare_api_token
+cloudflare_zone_id   = ""   # from Cloudflare dashboard
+ingress_ip           = ""   # from: kubectl get svc -n openclaw -l app.kubernetes.io/name=kubernetes-ingress
+ingress_domain       = "openclaw.local"
+dns_ttl              = 300

@@ -22,6 +22,15 @@ spec:
         app.kubernetes.io/component: alertmanager
         {{- include "openclaw.labels" . | nindent 8 }}
     spec:
+      securityContext:
+        fsGroup: 65534
+      initContainers:
+        - name: fix-storage-permissions
+          image: busybox:1.36
+          command: ["sh", "-c", "mkdir -p /var/alertmanager && chown -R 65534:65534 /var/alertmanager"]
+          volumeMounts:
+            - name: storage
+              mountPath: /var/alertmanager
       containers:
         - name: alertmanager
           image: "{{ .Values.observability.alertmanager.image.repository }}:{{ .Values.observability.alertmanager.image.tag }}"
@@ -36,11 +45,15 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /etc/alertmanager
+            - name: storage
+              mountPath: /var/alertmanager
           resources:
             {{- toYaml .Values.observability.alertmanager.resources | nindent 12 }}
       volumes:
         - name: config
           configMap:
             name: {{ include "openclaw.alertmanager.fullname" . }}-config
+        - name: storage
+          emptyDir: {}
       restartPolicy: Always
 {{- end }}

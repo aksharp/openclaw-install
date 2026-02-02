@@ -15,10 +15,11 @@
 | `tailscale_hostname` | Tailscale hostname for this node. |
 | `gateway_token` | OpenClaw gateway token (sensitive). |
 | `openai_api_key`, `anthropic_api_key`, `signal_account` | Optional; stored in Vault by the chart Job. |
-| `cloudflare_zone_id` | Cloudflare zone ID for DNS (empty = skip DNS). |
-| `ingress_ip` | IP for A records (set after first apply to enable DNS). |
+| `tailscale_api_key` | Tailscale API key (sensitive). Optional; set when managing Tailscale resources. |
 
-Sensitive variables: `TF_VAR_gateway_token`, `TF_VAR_openai_api_key`, etc.
+Sensitive variables: `TF_VAR_gateway_token`, `TF_VAR_tailscale_api_key`, etc.
+
+**Cloudflare DNS** (optional): Run from `terraform/cloudflare/` after main apply. See [terraform/cloudflare/README.md](cloudflare/README.md).
 
 ---
 
@@ -27,7 +28,7 @@ Sensitive variables: `TF_VAR_gateway_token`, `TF_VAR_openai_api_key`, etc.
 1. **Namespace** — Creates the Kubernetes namespace.
 2. **App secrets Secret** — From your variables; chart Job populates Vault (`openclaw/gateway`, `openclaw/signal`).
 3. **Helm release** — Installs/upgrades the OpenClaw chart.
-4. **DNS (Cloudflare)** — When `cloudflare_zone_id` and `ingress_ip` are set, creates A records.
+4. **DNS (Cloudflare)** — Optional; run from `terraform/cloudflare/` when needed.
 5. **Tailscale** — Provider configured; add resources in `main.tf` as needed.
 
 ---

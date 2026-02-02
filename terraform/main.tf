@@ -5,8 +5,6 @@
 
 locals {
   create_app_secrets = (var.gateway_token != "" || var.openai_api_key != "" || var.anthropic_api_key != "" || var.signal_account != "")
-  create_dns         = (var.cloudflare_zone_id != "" && var.ingress_ip != "")
-  ingress_hosts     = ["openclaw", "vault", "grafana", "prometheus"]
 }
 
 # --- Namespace ---
@@ -45,6 +43,7 @@ resource "helm_release" "openclaw" {
   repository       = null
   chart            = var.chart_path
   create_namespace = false
+  timeout          = 900 # 15 min — Vault bootstrap Job downloads vault+kubectl, init, unseal, create token
 
   values = [
     yamlencode({
@@ -69,18 +68,7 @@ resource "helm_release" "openclaw" {
   depends_on = [kubernetes_secret_v1.app_secrets]
 }
 
-# --- DNS (Cloudflare A records for Ingress hosts) ---
-
-resource "cloudflare_record" "ingress_hosts" {
-  for_each = local.create_dns ? toset(local.ingress_hosts) : toset([])
-
-  zone_id = var.cloudflare_zone_id
-  name    = each.key
-  type    = "A"
-  value   = var.ingress_ip
-  ttl     = var.dns_ttl
-  comment = "OpenClaw Ingress (Terraform)"
-}
+# --- DNS (Cloudflare) — optional; run from terraform/cloudflare/ when needed ---
 
 # --- Tailscale: ACL or DNS preferences (provider auth via env TAILSCALE_API_KEY or OAuth) ---
 

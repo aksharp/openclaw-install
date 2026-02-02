@@ -4,6 +4,24 @@ After **Terraform apply** (see [top-level README](../README.md)), these steps ar
 
 ---
 
+## Troubleshooting: Gateway pod stuck in Pending / Init
+
+If `kubectl port-forward svc/openclaw-openclaw-gateway 18789:18789 -n openclaw` fails with "pod is not running" or "status=Pending", the gateway is waiting for the Vault gateway token secret. This can happen if the Helm release timed out before the Vault bootstrap Job finished.
+
+**Fix:** Run the recovery job to create the missing secret:
+
+```bash
+# From repo root:
+kubectl apply -f scripts/vault-bootstrap-complete-job.yaml -n openclaw
+# Or from terraform/: kubectl apply -f ../scripts/vault-bootstrap-complete-job.yaml -n openclaw
+
+kubectl wait job/vault-bootstrap-complete -n openclaw --for=condition=complete --timeout=120s
+```
+
+If the job fails, inspect logs: `kubectl logs job/vault-bootstrap-complete -n openclaw`. Then retry the port-forward once the secret exists.
+
+---
+
 ## 1. Control UI — paste gateway token
 
 - Open the gateway via Tailscale or port-forward:  

@@ -1,0 +1,69 @@
+# One-off Job to complete Vault bootstrap when Helm timed out.
+# Creates openclaw-vault-gateway-token from existing bootstrap-keys.
+# Usage: kubectl apply -f scripts/vault-bootstrap-complete-job.yaml -n openclaw
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-bootstrap-complete
+  namespace: openclaw
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 3
+  template:
+    spec:
+      serviceAccountName: openclaw-openclaw-vault-bootstrap
+      restartPolicy: OnFailure
+      volumes:
+        - name: bootstrap-keys
+          secret:
+            secretName: openclaw-openclaw-vault-bootstrap-keys
+        - name: out
+          emptyDir: {}
+      initContainers:
+        - name: vault-keys
+          image: busybox:1.36
+          command: ["sh", "-c", "cp /vault-bootstrap-keys/root_token /out/rt 2>/dev/null || true; cp /vault-bootstrap-keys/unseal_key /out/uk 2>/dev/null || true"]
+          volumeMounts:
+            - name: bootstrap-keys
+              mountPath: /vault-bootstrap-keys
+              readOnly: true
+            - name: out
+              mountPath: /out
+      containers:
+        - name: complete
+          image: alpine:3.19
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              set -e
+              apk add --no-cache curl unzip ca-certificates
+              ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+              curl -sSLo /tmp/vault.zip "https://releases.hashicorp.com/vault/1.15.0/vault_1.15.0_linux_${ARCH}.zip"
+              unzip -o /tmp/vault.zip -d /usr/local/bin && chmod +x /usr/local/bin/vault
+              curl -sSLo /usr/local/bin/kubectl "https://dl.k8s.io/release/v1.28.0/bin/linux/${ARCH}/kubectl" && chmod +x /usr/local/bin/kubectl
+
+              export VAULT_ADDR="http://openclaw-openclaw-vault:8200"
+              export VAULT_TOKEN="$(cat /out/rt | tr -d '\r')"
+              UNSEL_KEY="$(cat /out/uk | tr -d '\r')"
+
+              vault operator unseal "$UNSEL_KEY" 2>/dev/null || true
+              vault secrets enable -path=openclaw kv-v2 2>/dev/null || true
+              vault policy write openclaw-read - <<'POLICY'
+              path "openclaw/data/*" { capabilities = ["read"] }
+              path "openclaw/metadata/*" { capabilities = ["read"] }
+              POLICY
+
+              GATEWAY_TOKEN=$(vault token create -policy=openclaw-read -no-default-policy -field=client_token)
+              kubectl create secret generic openclaw-vault-gateway-token \
+                --from-literal=token="$GATEWAY_TOKEN" -n openclaw \
+                --dry-run=client -o yaml | kubectl apply -f -
+              echo "Gateway token secret created."
+          volumeMounts:
+            - name: bootstrap-keys
+              mountPath: /vault-bootstrap-keys
+              readOnly: true
+            - name: out
+              mountPath: /out
+              readOnly: true

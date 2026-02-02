@@ -15,8 +15,11 @@ data:
             endpoint: 0.0.0.0:4318
     exporters:
       prometheus:
-        endpoint: "0.0.0.0:8888"
+        endpoint: "0.0.0.0:8889"
     service:
+      telemetry:
+        metrics:
+          address: ":8880"
       pipelines:
         metrics:
           receivers: [otlp]

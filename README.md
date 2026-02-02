@@ -43,9 +43,9 @@ OpenClaw (gateway, Vault, observability, HAProxy Ingress, cert-manager) is deplo
    - `tailscale_hostname` — your Tailscale machine name.
    - `gateway_token` — your OpenClaw gateway token (generate e.g. `openssl rand -hex 24`).
    - Optionally: `openai_api_key`, `anthropic_api_key`, `signal_account` (Terraform puts them in a Secret; the chart pushes them into Vault).
-   - For DNS: `cloudflare_zone_id`; leave `ingress_ip` empty on first run.
+   - For Cloudflare DNS: run from `terraform/cloudflare/` after the main apply (see [terraform/cloudflare/README.md](terraform/cloudflare/README.md)).
 
-4. **Apply Terraform** (from repo root or from `terraform/`):
+4. **Apply Terraform** (from `terraform/`):
 
    ```bash
    cd terraform
@@ -53,7 +53,7 @@ OpenClaw (gateway, Vault, observability, HAProxy Ingress, cert-manager) is deplo
    terraform apply -var-file=terraform.tfvars
    ```
 
-   Terraform creates the namespace, app-secrets Secret (from your vars), and the OpenClaw Helm release (Vault bootstrap and app-secrets population run as Jobs). If you set `cloudflare_zone_id`, run apply again after you have the Ingress IP: set `ingress_ip` in `terraform.tfvars` and run `terraform apply -var-file=terraform.tfvars` again.
+   Terraform creates the namespace, app-secrets Secret (from your vars), and the OpenClaw Helm release (Vault bootstrap and app-secrets population run as Jobs).
 
 5. **Get Ingress IP** (for DNS or /etc/hosts):
 

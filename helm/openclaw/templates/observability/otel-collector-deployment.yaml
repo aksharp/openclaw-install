@@ -33,7 +33,7 @@ spec:
               containerPort: 4318
               protocol: TCP
             - name: prometheus
-              containerPort: 8888
+              containerPort: 8889
               protocol: TCP
           resources:
             {{- toYaml (.Values.observability.otelCollector.resources | default (dict "limits" (dict "memory" "512Mi" "cpu" "500m") "requests" (dict "memory" "128Mi" "cpu" "50m"))) | nindent 12 }}

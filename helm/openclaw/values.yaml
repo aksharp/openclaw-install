@@ -129,7 +129,8 @@ kubernetes-ingress:
   controller:
     ingressClass: haproxy
 cert-manager:
-  installCRDs: true
+  crds:
+    enabled: true
 
 # ---- Ingress (required: all access is via host-based routing; no per-service port-forward) ----
 # HAProxy routes by hostname (openclaw.{domain}, vault.{domain}, grafana.{domain}, etc.). Per V10: restrict access (e.g. Tailscale, private IP).

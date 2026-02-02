@@ -3,6 +3,12 @@
 # Copy terraform.tfvars.example to terraform.tfvars and set values.
 # ---------------------------------------------------------------------------
 
+variable "kubeconfig_path" {
+  type        = string
+  default     = "~/.kube/config"
+  description = "Path to kubeconfig. Default works for kind/minikube. Override if your config is elsewhere."
+}
+
 variable "namespace" {
   type        = string
   default     = "openclaw"
@@ -73,27 +79,14 @@ variable "vault_app_secrets_secret_name" {
   description = "Kubernetes Secret name for app secrets (chart reads this and populates Vault)."
 }
 
-# --- DNS (Cloudflare) ---
-
-variable "cloudflare_zone_id" {
-  type        = string
-  default     = ""
-  description = "Cloudflare zone ID for the domain (leave empty to skip DNS)."
-}
-
-variable "ingress_ip" {
-  type        = string
-  default     = ""
-  description = "IP address of the Ingress controller (for DNS A records). Set after first apply or use data source."
-}
-
-variable "dns_ttl" {
-  type        = number
-  default     = 300
-  description = "TTL for DNS A records."
-}
-
 # --- Tailscale ---
+
+variable "tailscale_api_key" {
+  type        = string
+  default     = ""
+  sensitive   = true
+  description = "Tailscale API key for provider auth. Set via TF_VAR_tailscale_api_key or TAILSCALE_API_KEY env. Optional if not managing Tailscale resources."
+}
 
 variable "tailscale_oauth_client_id" {
   type        = string

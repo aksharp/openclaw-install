@@ -4,7 +4,12 @@ helm/openclaw/prerequisites.yaml
 
 # Terraform
 terraform/.terraform/
+terraform/**/.terraform/
 terraform/*.tfstate
 terraform/*.tfstate.*
+terraform/**/*.tfstate
+terraform/**/*.tfstate.*
 terraform/.terraform.lock.hcl
+terraform/**/.terraform.lock.hcl
 terraform/terraform.tfvars
+terraform/cloudflare/terraform.tfvars

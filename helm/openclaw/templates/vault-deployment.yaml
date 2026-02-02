@@ -53,12 +53,10 @@ spec:
             limits:
               memory: 256Mi
               cpu: "250m"
+          # Use tcpSocket so pod is Ready when Vault is listening; exec/vault status fails when not initialized.
           readinessProbe:
-            exec:
-              command:
-                - /bin/sh
-                - -ec
-                - "vault status -address=http://127.0.0.1:8200"
+            tcpSocket:
+              port: 8200
             initialDelaySeconds: 5
             periodSeconds: 5
       volumes:
