@@ -30,7 +30,21 @@ openclaw pairing approve signal <CODE>
 
 ---
 
-## 4. Optional steps
+## 4. Anthropic (Claude Code CLI setup-token)
+
+To use your **Claude Pro/Max subscription** instead of an Anthropic API key:
+
+1. Install Claude Code CLI: `curl -fsSL https://claude.ai/install.sh | bash`
+2. Run `claude setup-token` and copy the token.
+3. Paste it into OpenClaw:
+   - **Control UI**: Settings → Models → Anthropic → paste setup-token, or
+   - **CLI**: `kubectl exec -it deployment/<gateway-deployment-name> -n openclaw -- openclaw models auth paste-token --provider anthropic` (paste when prompted)
+
+Leave `anthropic_api_key` empty in Terraform when using this flow.
+
+---
+
+## 5. Optional steps
 
 | Step | Action |
 |------|--------|
