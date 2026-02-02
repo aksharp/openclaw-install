@@ -99,6 +99,8 @@ Internal Vault runs in **server mode** (file storage, non-root). A post-install 
 
 The chart creates the gateway token and the Kubernetes secret `openclaw-vault-gateway-token`; no manual policy/token or `kubectl create secret` needed.
 
+**Optional — app secrets from a Kubernetes Secret:** If you set `vault.appSecretsSecret` to a Secret name (e.g. `openclaw-vault-app-secrets`), a post-install Job reads that Secret (keys: `gateway_token`, `openai_api_key`, `anthropic_api_key`, `signal_account`) and runs `vault kv put openclaw/gateway` and `vault kv put openclaw/signal`. This is used by the [Terraform automation](../../terraform/README.md): Terraform creates the Secret from variables and sets `vault.appSecretsSecret` so you don’t port-forward or run the Vault CLI.
+
 ### 5.2 Create Kubernetes secrets
 
 - **Vault token:** The chart creates `openclaw-vault-gateway-token`; no action needed.

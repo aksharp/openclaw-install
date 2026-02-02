@@ -91,7 +91,7 @@ So: Ingress + DNS gives you **no port-forward** and **friendly names**; keep tha
   - DNS names that resolve to that entry point and are routed by host (openclaw.my-domain.com, vault.my-domain.com, etc.).
 - **Consul** does **not** replace Ingress for this. In Kubernetes, **service discovery** is already provided by **Kubernetes Services and cluster DNS** (e.g. `openclaw-openclaw-gateway.openclaw.svc.cluster.local`). Consul’s DNS would be an extra layer, and **external** DNS names like `openclaw.my-domain.com` are still best done with Ingress + your real DNS (or Tailscale DNS).
 
-So for “no port-forward” and “openclaw.my-domain.com / vault.my-domain.com”:** use Ingress (and optionally Tailscale). You don’t need Consul for that.
+So for “no port-forward” and “openclaw.my-domain.com / vault.my-domain.com”:** use Ingress (and Tailscale). You don’t need Consul for that.
 
 ### 2.2 When Consul can still be useful
 

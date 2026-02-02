@@ -20,7 +20,8 @@ tailscale:
 # ---- Vault (required; always deployed and bootstrapped by the chart) ----
 vault:
   # Vault runs in server mode. A post-install Job bootstraps it (init, unseal, KV, policy, gateway token, K8s secret).
-  # You put application secrets (gateway_token, API keys, signal) into Vault after the Job completes (PREREQUISITES 5.1).
+  # Optionally, a second Job populates openclaw/gateway and openclaw/signal from a K8s Secret (e.g. created by Terraform).
+  appSecretsSecret: ""   # e.g. openclaw-vault-app-secrets (keys: gateway_token, openai_api_key, anthropic_api_key, signal_account)
   existingSecret: "openclaw-vault-gateway-token"
   secretKey: token
 

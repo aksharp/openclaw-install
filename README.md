@@ -23,7 +23,7 @@ Target: **local Kubernetes with kind**. Commands assume you are at the **reposit
 | What you need | How to get it |
 |---------------|----------------|
 | **OpenClaw version** | Go to [OpenClaw GitHub releases](https://github.com/openclaw/openclaw/releases), pick latest stable, note the tag (e.g. `v1.0.0`). |
-| **Tailscale (optional for local)** | [Join Tailscale](https://tailscale.com/download); on the node run `tailscale status` and note the machine name (e.g. `openclaw-local`). For local-only you can use a placeholder like `openclaw-local`. |
+| **Tailscale** | [Join Tailscale](https://tailscale.com/download); on the node run `tailscale status` and note the machine name (e.g. `openclaw-local`). |
 | **Signal account** | Use a **dedicated** phone number for OpenClaw; you will store credentials in Vault later. Only the Vault path goes in config (e.g. `openclaw/signal`). |
 | **Vault** | For local/kind: use **internal** Vault (chart deploys it). No account to register. |
 | **Grafana admin password** | Choose a password; you will create a Kubernetes secret after deploy (see Step 4). |
@@ -52,6 +52,9 @@ Edit `helm/openclaw/prerequisites.yaml` and set at least:
 Do **not** put secrets in this file; the gateway token and API keys go in Vault; you create the Vault token Kubernetes secret after deploy (Step 4).
 
 Full reference for every key: [helm/openclaw/docs/PREREQUISITES.md](helm/openclaw/docs/PREREQUISITES.md).
+
+**Alternative: Deploy with Terraform (single config)**  
+For one-config automation (Helm + app secrets in Vault + DNS with Cloudflare + Tailscale), use [Terraform](terraform/README.md). One `terraform.tfvars` drives namespace, Kubernetes Secret for app secrets, Helm release, and Cloudflare A records. Remaining manual: paste gateway token in Control UI and approve Signal pairings.
 
 ---
 

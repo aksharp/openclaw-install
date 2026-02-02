@@ -1,3 +1,10 @@
 AI
 .DS_Store
 helm/openclaw/prerequisites.yaml
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/.terraform.lock.hcl
+terraform/terraform.tfvars
