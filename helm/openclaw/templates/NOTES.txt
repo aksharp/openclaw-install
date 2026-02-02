@@ -1,10 +1,10 @@
 OpenClaw (V10) has been installed.
 
-All manual steps (secrets, Vault, Tailscale, Signal, audit, TLS, DNS) are in: docs/PREREQUISITES.md (Section 5).
+All manual steps (Control UI, Tailscale Serve, Signal, audit, TLS, DNS) are in: docs/POST-INSTALL.md (repo root).
 
 Next steps (summary):
 
-1. Populate Vault: a post-install Job bootstraps Vault (init, unseal, KV, policy, gateway token, K8s secret). You only put application secrets in Vault. See docs/PREREQUISITES.md Section 5.1.
+1. Vault: a post-install Job bootstraps Vault (init, unseal, KV, policy, gateway token, K8s secret). If you set vault.appSecretsSecret (e.g. via Terraform), app secrets are populated by another Job. Otherwise put application secrets in Vault manually (see docs/POST-INSTALL.md).
    - Wait for Job:    kubectl wait job -n {{ include "openclaw.namespace" . }} -l app.kubernetes.io/component=vault-bootstrap --for=condition=complete --timeout=300s
    - Port-forward:    kubectl port-forward svc/{{ include "openclaw.vault.fullname" . }} 8200:8200 -n {{ include "openclaw.namespace" . }}
    - Root token:     export VAULT_TOKEN=$(kubectl get secret {{ include "openclaw.vault.fullname" . }}-bootstrap-keys -n {{ include "openclaw.namespace" . }} -o jsonpath='{.data.root_token}' | base64 -d)
@@ -43,7 +43,4 @@ Next steps (summary):
    - Access dashboards via Tailscale (production) or port-forward (local). Configure Alertmanager (Slack/PagerDuty) in values.
 {{- end }}
 
-Access is via Ingress only. Add /etc/hosts or DNS so openclaw.{{ .Values.ingress.domain }}, vault.{{ .Values.ingress.domain }}, grafana.{{ .Values.ingress.domain }}, prometheus.{{ .Values.ingress.domain }} resolve to the HAProxy Ingress controller. Port-forward once to the HAProxy service (e.g. kubectl port-forward svc/{{ .Release.Name }}-kubernetes-ingress 8080:80 -n {{ include "openclaw.namespace" . }}), then open http://openclaw.{{ .Values.ingress.domain }}:8080 etc. Per V10: restrict access (Tailscale/private). See docs/INGRESS-DNS-AND-LENS.md and README Step 6.2.
-
-For full checklist see: OPENCLAW-DOCKER-SECURE-INSTALL-V10.md
-For local Kubernetes on Mac: helm/openclaw/docs/LOCAL-KUBERNETES-MAC.md
+Access is via Ingress only. Add /etc/hosts or DNS so openclaw.{{ .Values.ingress.domain }}, vault.{{ .Values.ingress.domain }}, grafana.{{ .Values.ingress.domain }}, prometheus.{{ .Values.ingress.domain }} resolve to the HAProxy Ingress controller. Port-forward once to the HAProxy service (e.g. kubectl port-forward svc/{{ .Release.Name }}-kubernetes-ingress 8080:80 -n {{ include "openclaw.namespace" . }}), then open http://openclaw.{{ .Values.ingress.domain }}:8080 etc. Restrict access (Tailscale/private). See top-level README and docs/POST-INSTALL.md.
