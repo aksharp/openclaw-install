@@ -38,7 +38,7 @@ spec:
             - name: OPENCLAW_GATEWAY_PORT
               value: {{ .Values.gateway.port | quote }}
             - name: VAULT_ADDR
-              value: {{ if .Values.vault.internal.enabled }}{{ printf "http://%s:8200" (include "openclaw.vault.fullname" .) | quote }}{{ else }}{{ .Values.vault.address | quote }}{{ end }}
+              value: {{ printf "http://%s:8200" (include "openclaw.vault.fullname" .) | quote }}
             - name: VAULT_TOKEN
               valueFrom:
                 secretKeyRef:

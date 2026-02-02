@@ -240,7 +240,7 @@ Access is via Ingress hostnames only; see [INGRESS-DNS-AND-LENS.md](INGRESS-DNS-
 | Issue | What to check |
 |-------|----------------|
 | Pods not starting | `kubectl describe pod <pod> -n openclaw` and `kubectl logs <pod> -n openclaw`. |
-| Gateway can’t reach Vault | Ensure `vault.address` in values matches the Vault service name (e.g. `http://openclaw-openclaw-vault:8200`). |
+| Gateway can’t reach Vault | Ensure Vault pod is running and unsealed; the chart sets VAULT_ADDR to the internal Vault service. |
 | OTLP / Prometheus no metrics | Ensure OTel Collector is running and Prometheus scrapes `openclaw-openclaw-otel-collector:8888`. Check gateway config has `OPENCLAW_OTEL_ENDPOINT` set. |
 | Grafana “bad gateway” for Prometheus/Loki | Service names must match: `openclaw-openclaw-prometheus`, `openclaw-openclaw-loki` (or your release/chart name). |
 | Image pull errors | For kind: `kind load docker-image <image>` if using local images. For minikube: `eval $(minikube docker-env)` and build locally, or use a registry. |

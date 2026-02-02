@@ -23,13 +23,8 @@ tailscale:
   hostname: "openclaw"   # From tailscale status or admin console
   funnel: false          # Do not use Funnel for gateway
 
-# ---- Vault: internal (chart deploys) or external (you provide address) ----
+# ---- Vault (required; chart deploys and bootstraps it) ----
 vault:
-  enabled: true
-  internal:
-    enabled: true
-    # Internal Vault always runs in server mode (file storage, non-root). Init and unseal required (PREREQUISITES 5.1).
-  address: "http://openclaw-vault:8200"   # For external Vault, set your Vault URL
   existingSecret: "openclaw-vault-gateway-token"
   secretKey: token
 

@@ -1,4 +1,3 @@
-{{- if and .Values.vault.enabled .Values.vault.internal.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -18,4 +17,3 @@ spec:
     app.kubernetes.io/name: {{ include "openclaw.name" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/component: vault
-{{- end }}

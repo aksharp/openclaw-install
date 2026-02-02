@@ -21,7 +21,7 @@ Use this table to **gather** each value (manual step), then put it in the correc
 | **OpenClaw version** | Go to [GitHub releases](https://github.com/openclaw/openclaw/releases), pick latest stable, note the tag (e.g. `v1.2.3`). | `openclaw.image.tag` |
 | **Namespace** | Choose a dedicated namespace (e.g. `openclaw`). Use the same in the Helm command with `-n`. | `--namespace` and/or `namespaceOverride` |
 | **Tailscale hostname** | On the node that will run OpenClaw: run `tailscale status` or check Tailscale admin; note the machine name (e.g. `openclaw-prod`). | `tailscale.hostname` |
-| **Vault: internal vs external** | **Internal:** Chart deploys Vault in server mode (file storage, non-root); init and unseal required (Section 5.1); no URL to gather. **External:** Have your Vault URL (e.g. `https://vault.example.com`). | `vault.internal.enabled` (true/false); `vault.address` if external |
+| **Vault** | Chart deploys Vault in server mode and bootstraps it (init, unseal, KV, policy, gateway token, K8s secret); you only put application secrets in Vault (Section 5.1). | — |
 | **Signal account** | Use a dedicated phone number for OpenClaw; you will store credentials in Vault; only the Vault path is in config. | `gateway.signal.accountKeyInVault` (e.g. `openclaw/signal`) |
 | **Moltbook** | Decide if you use Moltbook; if yes, you will add Moltbook API key in Vault later. | `gateway.moltbook.enabled` (true/false) |
 | **Observability: same vs different host** | **Same host:** Leave `observability.otlpEndpointTailscale` empty (in-cluster URL is used). **Different host:** Note the Tailscale hostname of the observability host (e.g. `http://observability:4318`). | `observability.enabled`, `observability.otlpEndpointTailscale`; enable/disable `observability.grafana`, `observability.prometheus`, `observability.loki`, `observability.alertmanager` |
@@ -41,8 +41,6 @@ Use this table to **gather** each value (manual step), then put it in the correc
 2. **Edit `prerequisites.yaml`** and set at least:
    - `openclaw.image.tag` — from Section 2 (OpenClaw version).
    - `tailscale.hostname` — from Section 2 (Tailscale hostname).
-   - `vault.internal.enabled` — true if chart should deploy Vault; false if external.
-   - `vault.address` — only if external Vault.
    - `gateway.signal.accountKeyInVault` — Vault path for Signal (e.g. `openclaw/signal`).
    - `gateway.moltbook.enabled` — true/false.
    - `observability.enabled` and components (grafana, prometheus, loki, alertmanager) as desired.
@@ -81,31 +79,29 @@ helm upgrade --install openclaw . -f prerequisites.yaml -n openclaw --create-nam
 
 These steps are **not** automated by the chart; do them after the Helm command. All are documented here in one place.
 
-### 5.1 Populate Vault (if internal Vault is enabled)
+### 5.1 Populate Vault
 
-Internal Vault always runs in **server mode** (file storage, non-root). It starts **sealed**; you must initialize once and unseal, then enable KV and put secrets. The gateway reads the **gateway token** and API keys from Vault (path `openclaw/gateway`), not from a Kubernetes secret.
+Internal Vault runs in **server mode** (file storage, non-root). A post-install Job bootstraps it: waits for Vault, runs `vault operator init` (if not already initialized), stores root token and unseal key in Secret `openclaw-vault-bootstrap-keys`, unseals, enables KV at `openclaw`, creates the `openclaw-read` policy, creates a limited gateway token, and populates the Kubernetes secret `openclaw-vault-gateway-token`. The gateway reads the **gateway token** and API keys from Vault (path `openclaw/gateway`), not from a Kubernetes secret.
+
+**You only need to put your application secrets into Vault** after the Job completes:
 
 **Prerequisite:** Install the Vault CLI. macOS: `brew tap hashicorp/tap && brew install hashicorp/tap/vault`. Other platforms: [Vault downloads](https://developer.hashicorp.com/vault/downloads).
 
-1. Ensure the Vault pod is Running: `kubectl get pods -n openclaw -l app.kubernetes.io/component=vault`. It will be 0/1 Ready until unseal. If CrashLoopBackOff, check logs: `kubectl logs -n openclaw -l app.kubernetes.io/component=vault --tail=50`.
-2. In a **separate terminal** (leave it running), port-forward to the **pod** (service has no endpoints until unseal):  
-   `kubectl get pods -n openclaw -l app.kubernetes.io/component=vault -o name` then  
-   `kubectl port-forward pod/openclaw-openclaw-vault-<hash> 8200:8200 -n openclaw`. Set `export VAULT_ADDR='http://127.0.0.1:8200'`.
-3. In your **other terminal**, run **once**: `vault operator init -key-shares=1 -key-threshold=1`. Store **Unseal Key 1** and **Initial Root Token** safely.
-4. Unseal: `vault operator unseal <Unseal_Key_1>`. The pod will become Ready. You can switch port-forward to the service if you prefer: `kubectl port-forward svc/openclaw-openclaw-vault 8200:8200 -n openclaw`.
-5. Login: `export VAULT_TOKEN=<Initial_Root_Token>` (use the root token from step 3).
-6. Enable KV: `vault secrets enable -path=openclaw kv-v2`.
-7. Put gateway secrets (include **gateway_token** here):  
+1. Check the bootstrap Job: `kubectl get jobs -n openclaw -l app.kubernetes.io/component=vault-bootstrap`. Wait until it completes (e.g. `kubectl wait job/openclaw-openclaw-vault-auto-bootstrap -n openclaw --for=condition=complete --timeout=300s`).
+2. Port-forward to Vault (in a separate terminal):  
+   `kubectl port-forward svc/openclaw-openclaw-vault 8200:8200 -n openclaw`. Set `export VAULT_ADDR='http://127.0.0.1:8200'`.
+3. Get the root token from the bootstrap Secret (one-time, to put secrets):  
+   `export VAULT_TOKEN=$(kubectl get secret openclaw-openclaw-vault-bootstrap-keys -n openclaw -o jsonpath='{.data.root_token}' | base64 -d)`  
+   Then login is already set.
+4. Put gateway secrets (include **gateway_token**):  
    `vault kv put openclaw/gateway gateway_token=<YOUR_GATEWAY_TOKEN> openai_api_key=... anthropic_api_key=...`.
-8. Put Signal: `vault kv put openclaw/signal account=+1...` (and any other keys your gateway expects).
-9. Create a Vault policy that allows read on `openclaw/*` and create a token for the gateway; you will store that token in the Kubernetes secret in 5.2.
+5. Put Signal: `vault kv put openclaw/signal account=+1...` (and any other keys your gateway expects).
+
+The chart creates the gateway token and the Kubernetes secret `openclaw-vault-gateway-token`; no manual policy/token or `kubectl create secret` needed.
 
 ### 5.2 Create Kubernetes secrets
 
-- **Vault token (required when using Vault):** After populating Vault and creating a policy/token for the gateway (5.1), create the secret so the gateway can authenticate to Vault:
-  ```bash
-  kubectl create secret generic openclaw-vault-gateway-token --from-literal=token=<VAULT_TOKEN> -n openclaw
-  ```
+- **Vault token:** The chart creates `openclaw-vault-gateway-token`; no action needed.
 - **Grafana admin (optional):** If you set `observability.grafana.existingSecret`:
   ```bash
   kubectl create secret generic openclaw-grafana-admin --from-literal=admin-password=<PASSWORD> -n openclaw

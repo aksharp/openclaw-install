@@ -21,7 +21,7 @@ spec:
         {{- if .Values.ingress.hosts.gateway }}
         - {{ $gHost }}
         {{- end }}
-        {{- if and .Values.vault.enabled .Values.vault.internal.enabled .Values.ingress.hosts.vault }}
+        {{- if .Values.ingress.hosts.vault }}
         - {{ $vHost }}
         {{- end }}
         {{- if and .Values.observability.enabled .Values.observability.grafana.enabled .Values.ingress.hosts.grafana }}
@@ -45,7 +45,7 @@ spec:
                 port:
                   number: {{ .Values.gateway.port }}
     {{- end }}
-    {{- if and .Values.vault.enabled .Values.vault.internal.enabled .Values.ingress.hosts.vault }}
+    {{- if .Values.ingress.hosts.vault }}
     - host: {{ $vHost }}
       http:
         paths:

@@ -17,13 +17,10 @@ tailscale:
   hostname: "openclaw"
   funnel: false
 
-# ---- Vault ----
+# ---- Vault (required; always deployed and bootstrapped by the chart) ----
 vault:
-  enabled: true
-  internal:
-    enabled: true
-    # Internal Vault always runs in server mode (file storage, non-root). Init and unseal required (see PREREQUISITES 5.1).
-  address: "http://openclaw-vault:8200"
+  # Vault runs in server mode. A post-install Job bootstraps it (init, unseal, KV, policy, gateway token, K8s secret).
+  # You put application secrets (gateway_token, API keys, signal) into Vault after the Job completes (PREREQUISITES 5.1).
   existingSecret: "openclaw-vault-gateway-token"
   secretKey: token
 

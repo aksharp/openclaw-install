@@ -7,7 +7,7 @@ Target: **local Kubernetes with kind**. Commands assume you are at the **reposit
 ---
 
 ## Prerequisites (install once)
-
+   
 - **Docker** — [Install](https://docs.docker.com/get-docker/) (required for kind).
 - **kubectl** — [Install](https://kubernetes.io/docs/tasks/tools/install-kubectl/) (e.g. `brew install kubectl`).
 - **Helm 3** — [Install](https://helm.sh/docs/intro/install/) (e.g. `brew install helm`).
@@ -44,7 +44,6 @@ Edit `helm/openclaw/prerequisites.yaml` and set at least:
 
 - **openclaw.image.tag** — the OpenClaw version from 1.1 (e.g. `v1.0.0`).
 - **tailscale.hostname** — your Tailscale machine name or `openclaw-local` for local.
-- **vault.internal.enabled** — `true` (chart deploys Vault).
 - **gateway.signal.accountKeyInVault** — e.g. `openclaw/signal`.
 - **gateway.moltbook.enabled** — `false` unless you use Moltbook.
 - **observability.enabled** — `true` (Grafana, Prometheus, Loki, Alertmanager).

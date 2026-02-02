@@ -45,7 +45,7 @@ All **manual prerequisites** and **non-secret settings** go into **one file** (e
 | **OpenClaw version** | [GitHub releases](https://github.com/openclaw/openclaw/releases) — pick latest stable | `openclaw.image.tag` (e.g. `v1.2.3`) |
 | **Namespace** | Choose a dedicated namespace (e.g. `openclaw`) | `--namespace` and/or override in values |
 | **Tailscale hostname** | Tailscale admin or `tailscale status` on the node that will run OpenClaw | `tailscale.hostname` (e.g. `openclaw-prod`) |
-| **Vault** | Internal: chart deploys Vault in server mode (file storage, non-root); init and unseal required (PREREQUISITES 5.1); address is the in-cluster service. External: your Vault URL | `vault.address` (internal default: `http://openclaw-vault:8200`) |
+| **Vault** | Chart deploys Vault in server mode and bootstraps it (init, unseal, KV, policy, gateway token, K8s secret); you only put application secrets in Vault (PREREQUISITES 5.1). | — |
 | **Signal account** | Dedicated phone number for OpenClaw; stored in Vault, not in this file | `gateway.signal.accountKeyInVault` (e.g. `openclaw/signal`) |
 | **Moltbook** | Enable only if you use Moltbook; add Moltbook API key in Vault | `gateway.moltbook.enabled` (true/false) |
 | **Observability** | Same host: OTLP endpoint is set automatically to the in-cluster OTel Collector. Different host: set `observability.otlpEndpointTailscale` to the Tailscale hostname (e.g. `http://observability:4318`). Stack includes Prometheus, Grafana, Loki, Alertmanager (V10). | `observability.*` (enable/disable components) |
@@ -61,7 +61,7 @@ Create these **before or after** the first `helm upgrade --install` (see NOTES a
 | **Gateway token** | Token for Control UI and API access; stored in **Vault** at `openclaw/gateway` as `gateway_token` (not a K8s secret) | Put in Vault when you run `vault kv put openclaw/gateway gateway_token=...` (see PREREQUISITES.md Section 5). |
 | **Vault token** (if using Vault) | Token the gateway uses to authenticate to Vault | `kubectl create secret generic openclaw-vault-gateway-token --from-literal=token=<VAULT_TOKEN> -n openclaw` (after creating the token in Vault). |
 
-If you use **internal Vault**, you also populate Vault with:
+You populate Vault with:
 
 - `openclaw/gateway`: `gateway_token`, `openai_api_key`, `anthropic_api_key`, etc.
 - `openclaw/signal`: Signal account details
@@ -76,7 +76,6 @@ Then create a Vault policy and token for the gateway, and store that token in th
 2. Edit `prerequisites.yaml` and set at least:
    - `openclaw.image.tag` — desired OpenClaw release
    - `tailscale.hostname` — your Tailscale machine name
-   - `vault.*` — internal vs external, and `vault.address` if external
    - `gateway.signal.accountKeyInVault` — Vault path for Signal
    - `gateway.moltbook.enabled` — true/false
    - `observability.*` — enable/disable and OTLP endpoint (or Tailscale hostname if observability is on another host)
@@ -155,13 +154,13 @@ openclaw/
 ├── templates/
 │   ├── _helpers.tpl      # Labels, names
 │   ├── gateway-*.yaml    # Gateway Deployment, Service, ConfigMap
-│   ├── vault-*.yaml      # Optional internal Vault
+│   ├── vault-*.yaml      # Vault (deployed and bootstrapped by chart)
 │   ├── observability/   # OTel Collector, Prometheus, Grafana, Loki, Alertmanager
 │   ├── ingress.yaml     # Ingress resource (openclaw.{domain}, vault.{domain}) — always created when domain is set
 │   └── NOTES.txt        # Post-install checklist
 ```
 
-**Deployments created (when enabled):** (1) OpenClaw gateway, (2) Vault (internal), (3) OTel Collector, (4) Prometheus, (5) Grafana, (6) Loki, (7) Alertmanager. Optional: Mimir (long-term storage).
+**Deployments created (when enabled):** (1) OpenClaw gateway, (2) Vault, (3) OTel Collector, (4) Prometheus, (5) Grafana, (6) Loki, (7) Alertmanager. Optional: Mimir (long-term storage).
 
 To extend: add new values under `gateway.*` or `observability.*` with safe defaults, and add or adjust templates as needed. OpenClaw application version is controlled only by `openclaw.image.tag` in your config file.
 
