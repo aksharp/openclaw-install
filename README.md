@@ -1,4 +1,4 @@
-# OpenClaw on Kubernetes
+# [WIP] Productionized Installation of OpenClaw
 
 OpenClaw (gateway, Vault, observability, HAProxy Ingress, cert-manager) is deployed with **Terraform** from a single config file. This README is the entry point.
 
