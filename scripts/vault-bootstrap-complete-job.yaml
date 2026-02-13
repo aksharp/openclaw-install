@@ -22,7 +22,7 @@ spec:
       initContainers:
         - name: vault-keys
           image: busybox:1.36
-          command: ["sh", "-c", "cp /vault-bootstrap-keys/root_token /out/rt 2>/dev/null || true; cp /vault-bootstrap-keys/unseal_key /out/uk 2>/dev/null || true"]
+          command: ["sh", "-c", "cp /vault-bootstrap-keys/root_token /out/rt 2>/dev/null || true; cp /vault-bootstrap-keys/unseal_key /out/uk 2>/dev/null || true; [ -s /out/rt ] && [ -s /out/uk ] || { echo 'ERROR: bootstrap-keys secret is empty. Run Fix B in docs/POST-INSTALL.md'; exit 1; }"]
           volumeMounts:
             - name: bootstrap-keys
               mountPath: /vault-bootstrap-keys

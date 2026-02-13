@@ -1,0 +1,19 @@
+# Install this chart AFTER the main openclaw release, when Vault pod is Running and reachable.
+# Values are typically passed from start.sh (or terraform output).
+
+namespace: openclaw
+
+# Vault service name (from main release: <release>-openclaw-vault)
+vaultServiceName: openclaw-openclaw-vault
+
+# Secret name where bootstrap Job stores unseal key and root token (vaultServiceName + "-bootstrap-keys")
+bootstrapKeysSecretName: openclaw-openclaw-vault-bootstrap-keys
+
+# Secret name for gateway token (created by bootstrap Job; gateway waits for this)
+gatewayTokenSecretName: openclaw-vault-gateway-token
+
+# If set, create the app-secrets Job that populates openclaw/gateway and openclaw/signal from this K8s Secret
+appSecretsSecretName: ""
+
+# Init container wait: number of loops × 2s before giving up (bootstrap chart runs after Vault is reachable, so this is a safety net)
+vaultInitWaitLoops: 300

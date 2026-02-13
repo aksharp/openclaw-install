@@ -65,7 +65,7 @@ spec:
               apk add --no-cache curl
               KUBE_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
               KUBE_CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-              NS="{{ include "openclaw.namespace" . }}"
+              NS="{{ default .Release.Namespace .Values.namespaceOverride }}"
               SECRET="{{ .Values.vault.existingSecret }}"
               echo "Waiting for vault gateway token secret..."
               for i in $(seq 1 90); do

@@ -11,5 +11,7 @@ terraform/**/*.tfstate
 terraform/**/*.tfstate.*
 terraform/.terraform.lock.hcl
 terraform/**/.terraform.lock.hcl
+terraform/*.tfplan
+terraform/**/tfplan
 terraform/terraform.tfvars
 terraform/cloudflare/terraform.tfvars

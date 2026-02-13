@@ -2,13 +2,15 @@
 
 After **Terraform apply** (see [top-level README](../README.md)), these steps are not automated. Do them in order.
 
+Terraform does **not** wait for the Vault bootstrap Job (so apply won't time out). The gateway pod waits for the gateway-token secret; once the Job completes, the gateway starts. To wait explicitly: `kubectl wait job -n openclaw -l app.kubernetes.io/component=vault-bootstrap --for=condition=complete --timeout=600s`
+
 ---
 
 ## Troubleshooting: Gateway pod stuck in Pending / Init
 
 If `kubectl port-forward svc/openclaw-openclaw-gateway 18789:18789 -n openclaw` fails with "pod is not running" or "status=Pending", the gateway is waiting for the Vault gateway token secret. This can happen if the Helm release timed out before the Vault bootstrap Job finished.
 
-**Fix:** Run the recovery job to create the missing secret:
+**Fix A — bootstrap-keys has valid keys:** Run the recovery job:
 
 ```bash
 # From repo root:
@@ -18,7 +20,20 @@ kubectl apply -f scripts/vault-bootstrap-complete-job.yaml -n openclaw
 kubectl wait job/vault-bootstrap-complete -n openclaw --for=condition=complete --timeout=120s
 ```
 
-If the job fails, inspect logs: `kubectl logs job/vault-bootstrap-complete -n openclaw`. Then retry the port-forward once the secret exists.
+**Bootstrap init container in Back-off:** The bootstrap Job waits for Vault then inits or copies keys. If Vault isn’t ready or bootstrap-keys is empty while Vault is already initialized, the init container fails. Check: `kubectl logs -n openclaw -l app.kubernetes.io/component=vault-bootstrap --all-containers` and `kubectl get pods -n openclaw -l app.kubernetes.io/component=vault`. If Vault is running but keys were lost, use Fix B.
+
+**Fix B — bootstrap-keys is empty:** The bootstrap Job never completed (e.g. Vault was crashing). Reset and re-apply:
+
+```bash
+# 1. Delete the failed bootstrap job and empty secret so the chart can recreate them
+kubectl delete job -n openclaw -l app.kubernetes.io/component=vault-bootstrap --ignore-not-found
+kubectl delete secret openclaw-openclaw-vault-bootstrap-keys -n openclaw --ignore-not-found
+
+# 2. Re-run Terraform (Vault pod will restart with fix; bootstrap Job will run again)
+cd terraform && terraform apply -var-file=terraform.tfvars
+```
+
+If the recovery job fails, inspect logs: `kubectl logs job/vault-bootstrap-complete -n openclaw`. Then retry the port-forward once the secret exists.
 
 ---
 

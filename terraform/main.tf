@@ -43,7 +43,8 @@ resource "helm_release" "openclaw" {
   repository       = null
   chart            = var.chart_path
   create_namespace = false
-  timeout          = 900 # 15 min — Vault bootstrap Job downloads vault+kubectl, init, unseal, create token
+  wait             = false # Don't block on post-upgrade hook (Vault bootstrap Job); it runs in background; gateway waits for secret
+  timeout          = 300
 
   values = [
     yamlencode({
@@ -59,6 +60,9 @@ resource "helm_release" "openclaw" {
         domain = var.ingress_domain
       }
       vault = {
+        bootstrap = {
+          installSeparately = true   # Bootstrap Job installed by start.sh after Vault is reachable (openclaw-bootstrap chart)
+        }
         appSecretsSecret = local.create_app_secrets ? var.vault_app_secrets_secret_name : ""
       }
     })

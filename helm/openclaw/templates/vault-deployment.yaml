@@ -32,10 +32,16 @@ spec:
         - name: vault
           image: hashicorp/vault:latest
           imagePullPolicy: IfNotPresent
+          # Bypass image entrypoint (chown, setcap) — run vault directly; SKIP_SETCAP avoids capability errors when non-root.
           command:
-            - vault
-            - server
-            - -config=/vault/config/config.hcl
+            - /bin/sh
+            - -c
+            - "exec vault server -config=/vault/config/config.hcl"
+          env:
+            - name: SKIP_SETCAP
+              value: "1"
+            - name: VAULT_ADDR
+              value: "http://127.0.0.1:8200"
           volumeMounts:
             - name: config
               mountPath: /vault/config
@@ -46,9 +52,6 @@ spec:
             - name: http
               containerPort: 8200
               protocol: TCP
-          env:
-            - name: VAULT_ADDR
-              value: "http://127.0.0.1:8200"
           resources:
             limits:
               memory: 256Mi

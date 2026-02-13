@@ -53,7 +53,12 @@ OpenClaw (gateway, Vault, observability, HAProxy Ingress, cert-manager) is deplo
    terraform apply -var-file=terraform.tfvars
    ```
 
-   Terraform creates the namespace, app-secrets Secret (from your vars), and the OpenClaw Helm release (Vault bootstrap and app-secrets population run as Jobs).
+   Terraform creates the namespace, app-secrets Secret (from your vars), and the OpenClaw Helm release. The Vault bootstrap Job runs in the background; the gateway pod waits for the gateway-token secret, then starts.
+
+   **Optional:** Wait for the bootstrap Job before using the gateway:
+   ```bash
+   kubectl wait job -n openclaw -l app.kubernetes.io/component=vault-bootstrap --for=condition=complete --timeout=600s
+   ```
 
 5. **Get Ingress IP** (for DNS or /etc/hosts):
 

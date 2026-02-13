@@ -19,6 +19,9 @@ tailscale:
 
 # ---- Vault (required; always deployed and bootstrapped by the chart) ----
 vault:
+  # When true, bootstrap and app-secrets Jobs are NOT created here; install openclaw-bootstrap chart after Vault is ready.
+  bootstrap:
+    installSeparately: false
   # Vault runs in server mode. A post-install Job bootstraps it (init, unseal, KV, policy, gateway token, K8s secret).
   # Optionally, a second Job populates openclaw/gateway and openclaw/signal from a K8s Secret (e.g. created by Terraform).
   appSecretsSecret: ""   # e.g. openclaw-vault-app-secrets (keys: gateway_token, openai_api_key, anthropic_api_key, signal_account)
